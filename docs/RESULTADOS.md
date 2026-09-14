@@ -196,3 +196,5 @@ Interseção (1M×1M): range **densa** → bitset AVX-512 **4 µs**; universo **
 | 64 | 2% (ideal 1,5%) | 3% (ideal 1,6%) | 99% |
 
 **Veredito:** entrar/sair um nó remapeia só ~1/(N+1) dos IDs (vs ~tudo no módulo ingênuo) — a base pra **rebalancear o cluster sem re-shuffle total**. É a peça de topologia que casa com o plano de clusterizar o banco em instâncias (plataforma de nuvem).
+
+**Integração ring+cluster** (`internal/cluster/sharded.go` + `cmd/ringclusterdemo`): cada shard é atribuído a um nó **pelo anel**. Verificado: resultado **idêntico ao local** (12 shards / 3 nós) e, entrando +1 nó, **2/12 shards mudam de dono** (17%, ideal 25%) — no módulo mudariam ~todos.
