@@ -180,7 +180,14 @@ Interseção (1M×1M): range **densa** → bitset AVX-512 **4 µs**; universo **
 | 4 nós locais (loopback), universo 2²⁶ | local 282 µs · distribuído **3,3 ms/consulta** (307 q/s) |
 | **VPS ↔ nó remoto** (VPN), universo 2²⁴, 2 shards | correto; **275 ms/consulta** (rede-bound: link WG ~2 MB/s) |
 
-**Veredito:** o ADDB escala **horizontalmente** — memória e compute distribuídos entre máquinas (a peça que faltava pra "cluster"). O custo é a **rede** (broadcast da consulta); universos maiores pedem consulta comprimida/particionada.
+**Veredito:** o ADDB escala **horizontalmente** — memória e compute distribuídos entre máquinas. O gargalo era a **rede** (transmitir a consulta a cada query); a solução implementada são **conjuntos ARMAZENADOS**: a interseção `A ∩ B` de dois sets já armazenados só carrega o **nome** na rede (cada nó faz o `AND` local), sem transmitir dados.
+
+| cenário | armazenado (só nomes) | ad-hoc (transmite a consulta) |
+|---|---|---|
+| 4 nós locais (2²⁶) | **559 µs** | 3,29 ms (**6×**) |
+| **VPS ↔ nó remoto** (WG, 2²⁴) | **19,4 ms** | 364 ms (**19×**) |
+
+Em link lento (VPN ~2 MB/s) o ganho explode — é o modo escalável do cluster.
 
 ---
 
