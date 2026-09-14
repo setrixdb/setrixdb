@@ -8,7 +8,7 @@ import (
 
 func TestShardedCluster(t *testing.T) {
 	W := 4096
-	S := 7 // 7 shards p/ 3 nós → distribuição desigual (alguns nós com 2-3 shards)
+	S := 7 // 7 shards p/ 3 nós → distribuição desigual
 	A := make([]uint64, W)
 	B := make([]uint64, W)
 	r := rand.New(rand.NewSource(3))
@@ -46,20 +46,21 @@ func TestShardedCluster(t *testing.T) {
 	}
 	defer sc.Close()
 
-	// cada shard precisa ter dono
 	for s, o := range sc.Owners() {
 		if o == "" {
 			t.Fatalf("shard %d sem dono", s)
 		}
 	}
-	if err := sc.Load(A); err != nil {
+	if err := sc.LoadSet("A", A); err != nil {
 		t.Fatal(err)
 	}
-	got, err := sc.IntersectCount(B)
-	if err != nil {
+	if err := sc.LoadSet("B", B); err != nil {
 		t.Fatal(err)
 	}
-	if got != want {
-		t.Fatalf("sharded=%d local=%d", got, want)
+	if got, err := sc.IntersectQuery("A", B); err != nil || got != want {
+		t.Fatalf("IntersectQuery: got=%d want=%d err=%v", got, want, err)
+	}
+	if got, err := sc.IntersectStored("A", "B"); err != nil || got != want {
+		t.Fatalf("IntersectStored: got=%d want=%d err=%v", got, want, err)
 	}
 }

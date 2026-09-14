@@ -1,10 +1,15 @@
-// Package cluster implementa a camada over-the-wire do ADDB: nós que servem um
-// SHARD (fatia do bitset global) por TCP e um coordenador que faz broadcast da
-// consulta e agrega. Protocolo binário mínimo (sem dependências).
+// Package cluster implementa a camada over-the-wire do ADDB: nós que servem
+// SHARDS (fatias do bitset global) por TCP e um coordenador que agrega.
+// Protocolo binário mínimo, zero-copy (sem dependências).
 //
-// Modelo: o espaço de bits é particionado em S faixas de palavras. O nó i guarda
-// as palavras [i·W/S, (i+1)·W/S). O coordenador envia a fatia correspondente da
-// consulta; o nó faz AND-popcount local e devolve a contagem. A soma = |A ∩ B|.
+// Modelo de dados: um nó guarda CONJUNTOS nomeados ("sets"), cada um a
+// concatenação das faixas de palavras dos shards que ele possui. Dois modos de
+// interseção:
+//
+//	AND entre dois conjuntos ARMAZENADOS (a,b): nada trafega além do nome dos
+//	conjuntos → cada nó faz o AND local. É o modo escalável.
+//
+//	AND contra uma consulta AD-HOC: o coordenador envia a fatia da consulta.
 package cluster
 
 import (
@@ -18,9 +23,10 @@ import (
 )
 
 const (
-	opLoad  = 0 // [0][words...]  carrega o shard no nó
-	opQuery = 1 // [1][words...]  → resposta [uint64 count]
-	maxMsg  = 1 << 30
+	opLoadSet   = 0 // [0][u16 nLen][name][words...]
+	opAndStored = 1 // [1][u16 aLen][a][u16 bLen][b]        -> [u64 count]
+	opAndQuery  = 2 // [2][u16 nLen][name][words...]        -> [u64 count]
+	maxMsg      = 1 << 30
 )
 
 func writeMsg(w io.Writer, payload []byte) error {
@@ -47,8 +53,6 @@ func readMsg(r io.Reader) ([]byte, error) {
 	return buf, nil
 }
 
-// bytesView devolve uma visão []byte sobre um []uint64 (zero-copy). Somente
-// leitura; a ordem de bytes casa em little-endian (x86/arm64).
 func bytesView(w []uint64) []byte {
 	if len(w) == 0 {
 		return nil
@@ -56,7 +60,6 @@ func bytesView(w []uint64) []byte {
 	return unsafe.Slice((*byte)(unsafe.Pointer(&w[0])), len(w)*8)
 }
 
-// wordsView devolve uma visão []uint64 sobre um []byte (zero-copy).
 func wordsView(b []byte) []uint64 {
 	if len(b) < 8 {
 		return nil
@@ -64,18 +67,48 @@ func wordsView(b []byte) []uint64 {
 	return unsafe.Slice((*uint64)(unsafe.Pointer(&b[0])), len(b)/8)
 }
 
-// Node serve um shard por TCP.
-type Node struct {
-	Addr  string
-	mu    sync.RWMutex
-	words []uint64
-	ln    net.Listener
+// writeName acrescenta [u16 len][nome] ao buffer.
+func writeName(buf []byte, name string) []byte {
+	var l [2]byte
+	binary.LittleEndian.PutUint16(l[:], uint16(len(name)))
+	buf = append(buf, l[:]...)
+	return append(buf, name...)
 }
 
-// NewNode cria um nó (ainda sem escutar).
-func NewNode(addr string) *Node { return &Node{Addr: addr} }
+// readName lê [u16 len][nome] de b e devolve (nome, resto, ok).
+func readName(b []byte) (string, []byte, bool) {
+	if len(b) < 2 {
+		return "", nil, false
+	}
+	n := int(binary.LittleEndian.Uint16(b[:2]))
+	if len(b) < 2+n {
+		return "", nil, false
+	}
+	return string(b[2 : 2+n]), b[2+n:], true
+}
 
-// Listen sobe o servidor e devolve o endereço efetivo.
+func andCount(a, b []uint64) uint64 {
+	m := len(a)
+	if len(b) < m {
+		m = len(b)
+	}
+	var c uint64
+	for i := 0; i < m; i++ {
+		c += uint64(bits.OnesCount64(a[i] & b[i]))
+	}
+	return c
+}
+
+// Node serve shards/conjuntos por TCP.
+type Node struct {
+	Addr string
+	mu   sync.RWMutex
+	sets map[string][]uint64
+	ln   net.Listener
+}
+
+func NewNode(addr string) *Node { return &Node{Addr: addr, sets: map[string][]uint64{}} }
+
 func (n *Node) Listen() (string, error) {
 	ln, err := net.Listen("tcp", n.Addr)
 	if err != nil {
@@ -106,51 +139,65 @@ func (n *Node) handle(c net.Conn) {
 		if len(msg) < 1 {
 			continue
 		}
+		var count uint64
 		switch msg[0] {
-		case opLoad:
-			shard := append([]uint64(nil), wordsView(msg[1:])...)
+		case opLoadSet:
+			name, rest, ok := readName(msg[1:])
+			if !ok {
+				continue
+			}
+			shard := append([]uint64(nil), wordsView(rest)...)
 			n.mu.Lock()
-			n.words = shard
+			n.sets[name] = shard
 			n.mu.Unlock()
-		case opQuery:
-			q := wordsView(msg[1:])
+			// sem resposta (fire-and-forget) — mas completa para sincronia:
+			writeMsg(c, make([]byte, 8))
+			continue
+		case opAndStored:
+			a, rest, ok := readName(msg[1:])
+			if !ok {
+				continue
+			}
+			b, _, ok := readName(rest)
+			if !ok {
+				continue
+			}
 			n.mu.RLock()
-			var cnt uint64
-			m := len(q)
-			if len(n.words) < m {
-				m = len(n.words)
-			}
-			for i := 0; i < m; i++ {
-				cnt += uint64(bits.OnesCount64(q[i] & n.words[i]))
-			}
+			count = andCount(n.sets[a], n.sets[b])
 			n.mu.RUnlock()
-			var resp [8]byte
-			binary.LittleEndian.PutUint64(resp[:], cnt)
-			if err := writeMsg(c, resp[:]); err != nil {
-				return
+		case opAndQuery:
+			name, rest, ok := readName(msg[1:])
+			if !ok {
+				continue
 			}
+			q := wordsView(rest)
+			n.mu.RLock()
+			count = andCount(n.sets[name], q)
+			n.mu.RUnlock()
 		default:
+			return
+		}
+		var resp [8]byte
+		binary.LittleEndian.PutUint64(resp[:], count)
+		if err := writeMsg(c, resp[:]); err != nil {
 			return
 		}
 	}
 }
 
-// Close encerra o servidor.
 func (n *Node) Close() {
 	if n.ln != nil {
 		n.ln.Close()
 	}
 }
 
-// Coordinator fala com S nós e agrega as contagens.
+// Coordinator fala com S nós (partição fixa por faixa de palavras).
 type Coordinator struct {
 	conns []net.Conn
 	lo    []int
 	hi    []int
 }
 
-// Dial conecta aos nós. W = total de palavras do bitset global; as faixas são
-// particionadas igualmente entre os nós (na mesma ordem dos endereços).
 func Dial(addrs []string, W int) (*Coordinator, error) {
 	S := len(addrs)
 	c := &Coordinator{}
@@ -167,23 +214,23 @@ func Dial(addrs []string, W int) (*Coordinator, error) {
 	return c, nil
 }
 
-// Load distribui as fatias do conjunto A (shard global) para cada nó.
-func (c *Coordinator) Load(globalA []uint64) error {
+// LoadSet envia a cada nó a fatia (do seu intervalo) do conjunto `global`.
+func (c *Coordinator) LoadSet(name string, global []uint64) error {
 	for i := range c.conns {
-		words := globalA[c.lo[i]:c.hi[i]]
-		payload := make([]byte, 1+len(words)*8)
-		payload[0] = opLoad
-		copy(payload[1:], bytesView(words))
+		payload := []byte{opLoadSet}
+		payload = writeName(payload, name)
+		payload = append(payload, bytesView(global[c.lo[i]:c.hi[i]])...)
 		if err := writeMsg(c.conns[i], payload); err != nil {
+			return err
+		}
+		if _, err := readMsg(c.conns[i]); err != nil { // ack
 			return err
 		}
 	}
 	return nil
 }
 
-// IntersectCount envia a fatia da consulta B para cada nó e soma |A_shard ∩ B|.
-// O broadcast é PARALELO entre os nós (cada nó tem sua conexão).
-func (c *Coordinator) IntersectCount(query []uint64) (uint64, error) {
+func (c *Coordinator) gather(send func(i int) ([]byte, error)) (uint64, error) {
 	counts := make([]uint64, len(c.conns))
 	errs := make([]error, len(c.conns))
 	var wg sync.WaitGroup
@@ -191,10 +238,11 @@ func (c *Coordinator) IntersectCount(query []uint64) (uint64, error) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			words := query[c.lo[i]:c.hi[i]]
-			payload := make([]byte, 1+len(words)*8)
-			payload[0] = opQuery
-			copy(payload[1:], bytesView(words))
+			payload, err := send(i)
+			if err != nil {
+				errs[i] = err
+				return
+			}
 			if err := writeMsg(c.conns[i], payload); err != nil {
 				errs[i] = err
 				return
@@ -218,7 +266,28 @@ func (c *Coordinator) IntersectCount(query []uint64) (uint64, error) {
 	return total, nil
 }
 
-// Close fecha todas as conexões.
+// IntersectStored calcula |A ∩ B| p/ dois conjuntos ARMAZENADOS — sem trafegar
+// dados de consulta (só os nomes).
+func (c *Coordinator) IntersectStored(a, b string) (uint64, error) {
+	return c.gather(func(i int) ([]byte, error) {
+		payload := []byte{opAndStored}
+		payload = writeName(payload, a)
+		payload = writeName(payload, b)
+		return payload, nil
+	})
+}
+
+// IntersectQuery calcula |A ∩ Q| onde A é armazenado e Q é uma consulta ad-hoc
+// (envia a fatia da consulta para cada nó).
+func (c *Coordinator) IntersectQuery(name string, query []uint64) (uint64, error) {
+	return c.gather(func(i int) ([]byte, error) {
+		payload := []byte{opAndQuery}
+		payload = writeName(payload, name)
+		payload = append(payload, bytesView(query[c.lo[i]:c.hi[i]])...)
+		return payload, nil
+	})
+}
+
 func (c *Coordinator) Close() {
 	for _, cn := range c.conns {
 		if cn != nil {
