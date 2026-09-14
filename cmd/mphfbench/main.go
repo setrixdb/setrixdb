@@ -9,7 +9,7 @@
 // Uso:
 //
 //	go run ./cmd/mphfbench -n 1000000
-//	go run ./cmd/mphfbench -n 50000000 -lambda 0.95
+//	go run ./cmd/mphfbench -n 50000000 -lambda 2.0 -epsilon 0.23
 package main
 
 import (
@@ -41,18 +41,19 @@ func mixKey(x uint64) uint64 {
 
 func main() {
 	n := flag.Int("n", 1_000_000, "número de chaves")
-	lambda := flag.Float64("lambda", 0.95, "load factor alvo")
+	lambda := flag.Float64("lambda", 2.0, "load factor dos buckets (chaves/bucket)")
+	epsilon := flag.Float64("epsilon", 0.23, "folga da tabela (1+eps)")
 	seed := flag.Uint64("seed", 0xADDB, "seed do hash")
 	doMap := flag.Bool("map", true, "also bench Go map (pula se n grande)")
 	mapLimit := flag.Int("maplimit", 8_000_000, "n máximo para rodar o bench de map")
 	flag.Parse()
 
 	keys := makeKeys(*n)
-	fmt.Printf("== ADDB MPHF (CHD) — n=%d lambda=%.2f ==\n", *n, *lambda)
+	fmt.Printf("== ADDB MPHF (CHD v2) — n=%d lambda=%.2f epsilon=%.2f ==\n", *n, *lambda, *epsilon)
 
 	// --- build ---
 	t0 := time.Now()
-	h, err := mphf.Build(keys, *lambda, *seed)
+	h, err := mphf.BuildOpts(keys, *lambda, *epsilon, *seed)
 	buildDur := time.Since(t0)
 	if err != nil {
 		fmt.Println("ERRO no build:", err)
@@ -170,4 +171,26 @@ func main() {
 
 	fmt.Printf("\nRESUMO n=%d: colisões=%d | %.2f bits/chave | build %.1fs | %.1f M lookups/s (1 thread)\n",
 		*n, collisions, h.BitsPerKey(), buildDur.Seconds(), float64(*n)/d1.Seconds()/1e6)
+
+	// --- varredura λ × ε (para achar o ponto ótimo de bits/chave) ---
+	if *n <= 2_000_000 {
+		fmt.Printf("\n== varredura λ × ε (n=%d) — bits/chave ==\n", *n)
+		fmt.Print("        ")
+		for _, e := range []float64{0.10, 0.23, 0.40, 0.60} {
+			fmt.Printf("  ε=%.2f ", e)
+		}
+		fmt.Println()
+		for _, l := range []float64{1.2, 1.6, 2.0, 2.5, 3.0} {
+			fmt.Printf("  λ=%.1f  ", l)
+			for _, e := range []float64{0.10, 0.23, 0.40, 0.60} {
+				hh, err := mphf.BuildOpts(keys, l, e, 0xADDB)
+				if err != nil {
+					fmt.Printf("   FAIL  ")
+					continue
+				}
+				fmt.Printf("  %5.2f ", hh.BitsPerKey())
+			}
+			fmt.Println()
+		}
+	}
 }

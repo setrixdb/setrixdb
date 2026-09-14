@@ -22,21 +22,29 @@ Arquivo: `internal/addb/hash_test.go` (`TestKnownCollision`, `TestCollisionRate`
 
 ---
 
-## 2. MPHF (CHD) — ID único, 0 colisão
+## 2. MPHF (CHD v2) — ID único, 0 colisão
 
-Implementação própria (sem lib de terceiros): `internal/mphf/`.
+Implementação própria (sem lib de terceiros): `internal/mphf/`. **v2 corrige um defeito estrutural:** a v1 usava `M = n/λ` como nº de buckets **e** tamanho da tabela (por isso o deslocamento estourava em λ alto). A v2 separa **buckets (n/λ)** da **tabela (n·(1+ε))**.
 
-| Métrica | Valor |
-|---|---|
-| 50.000.000 chaves | **0 colisões** (por construção) |
-| bits/chave (λ=0,90) | **13,68** (81,5 MiB) |
-| build (50M) | 20,6 s (2,4M chaves/s), pico 1,35 GB |
-| lookup (50M) | 113 ns/op (O(1)) |
-| lookup (1M) | 13 ns/op |
+| Métrica (n=50M) | v1 | v2 (λ=3,0 · ε=0,60) |
+|---|---|---|
+| colisões | 0 | **0** |
+| bits/chave | 13,68 (81,5 MiB) | **4,03 (24,0 MiB)** |
+| build | 20,6 s | 13,6 s |
+| lookup | 113 ns | 118 ns |
 
-bits/chave por load factor (n=1M): λ=0,90 → **12,57** · λ=0,95 → 15,07 · λ=0,99 → 17,49.
+Varredura λ×ε (n=1M, bits/chave):
 
-**Veredito:** resolve o "ID único"; cabe em `uint32` (50M < 2³²). Membership exata = MPHF + 1 comparação.
+| λ \ ε | 0,10 | 0,23 | 0,40 | 0,60 |
+|---|---|---|---|---|
+| 1,2 | 10,34 | 8,81 | 8,15 | 7,53 |
+| 2,0 | 6,67 | 5,81 | 4,99 | 5,20 |
+| 2,5 | 5,17 | 4,91 | 4,69 | 4,50 |
+| 3,0 | 4,84 | 4,31 | 4,15 | **4,03** |
+
+**Veredito:** **3,4× menos memória**, lookup na mesma faixa (~118 ns), build mais rápido. Aproxima o piso teórico (~1,44 bits/chave) e a fronteira prática (~2,6–3,6 bits/chave de RecSplit/PTHash). Cabe em `uint32` (50M < 2³²); membership exata = MPHF + 1 comparação.
+
+> Nota: no `vsbench` o "9,9 B/chave" do MPHF somava o array de chaves de entrada (`n×8 B`) à estrutura — o número limpo é `h.Bytes()` (só a estrutura).
 
 ---
 
@@ -59,7 +67,7 @@ bits/chave por load factor (n=1M): λ=0,90 → **12,57** · λ=0,95 → 15,07 ·
 | Estrutura | memória | lookup | exato? |
 |---|---|---|---|
 | `map[uint64]` (Go) | 22,3 B/chave | 133,3M ops/s | sim |
-| **MPHF (CHD)** | **9,9 B/chave** | 100,4M ops/s | **sim** |
+| **MPHF (CHD v2)** | **0,5 B/chave** (estrutura) | ~118 ns/lookup | **sim** |
 | Bloom (1% FP) | 1,2 B/chave | 23,6M ops/s | não |
 
 **Veredito:** MPHF = paridade de velocidade com o `map`, **2,2× menos memória**, ID exato.
@@ -134,7 +142,7 @@ Teste real: função `ExtractSet` (`internal/addb/extract.go`).
 
 ## Resumo executivo
 
-1. **ID único:** MPHF (CHD) → 0 colisão, ~13,7 bits/chave, lookup O(1).
+1. **ID único:** MPHF (CHD v2) → 0 colisão, **~4 bits/chave** (3,4× menos que a v1), lookup O(1).
 2. **Membership:** paridade com `map`, 2,2× menos memória.
 3. **Interseção:** bitset denso + AVX-512 → **líder** (24–30× vs Roaring), denso e esparso (enquanto couber).
 4. **Escala:** sharding por range distribui o compute; memória horizontal = multi-máquina + híbrido bitset/roaring.
