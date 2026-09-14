@@ -27,6 +27,12 @@ memória contíguo** (`[]uint64`) que pode ser entregue ao hardware por
 
 ## 2. Visão geral da arquitetura
 
+> **Resultado medido (14/09):** trocando o hash posicional por um **MPHF (CHD)** com
+> IDs únicos, 50 mi de termos → **0 colisão, 81,5 MiB, lookup O(1) em 113 ns**
+> (~115.000× mais rápido que a varredura linear). Ver
+> [`docs/RESULTADOS-MPHF.md`](docs/RESULTADOS-MPHF.md) e
+> [`docs/REVISAO-ARQUITETURA.md`](docs/REVISAO-ARQUITETURA.md).
+
 ```
         ┌──────────────────────────────────────────────────────────────┐
         │                          ADDB Engine                          │
@@ -152,6 +158,8 @@ addb/
 │   ├── synonyms.go               ← FlatSynonymStorage (flat arrays + offsets)
 │   ├── search.go                 ← kernel aritmético + busca paralela + DMA
 │   └── ring.go                   ← consistent hash ring
+├── internal/mphf/                ← MPHF (CHD) — ID único, 0 colisão
+├── cmd/mphfbench/                ← mede bits/chave, colisões e ops/s do MPHF
 ├── examples/busca_paralela/main.go
 ├── cmd/benchmark/main.go         ← mede ops/segundo (executável)
 └── bench/search_bench_test.go    ← benchmark `go test -bench`
