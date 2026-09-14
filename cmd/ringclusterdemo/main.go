@@ -94,12 +94,16 @@ func main() {
 		fmt.Printf("  %s → %d shards\n", a, perNode[a])
 	}
 
-	if err := sc.Load(A); err != nil {
+	if err := sc.LoadSet("A", A); err != nil {
+		fmt.Println("erro:", err)
+		return
+	}
+	if err := sc.LoadSet("B", B); err != nil {
 		fmt.Println("erro:", err)
 		return
 	}
 	t = time.Now()
-	distCnt, err := sc.IntersectCount(B)
+	distCnt, err := sc.IntersectStored("A", "B")
 	dDist := time.Since(t)
 	if err != nil {
 		fmt.Println("erro:", err)

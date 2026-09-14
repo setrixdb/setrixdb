@@ -44,14 +44,20 @@ func TestClusterIntersect(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	if err := c.Load(A); err != nil {
+
+	if err := c.LoadSet("A", A); err != nil {
 		t.Fatal(err)
 	}
-	got, err := c.IntersectCount(B)
-	if err != nil {
+	if err := c.LoadSet("B", B); err != nil {
 		t.Fatal(err)
 	}
-	if got != want {
-		t.Fatalf("distribuído=%d local=%d", got, want)
+
+	// consulta ad-hoc (envia a fatia de B)
+	if got, err := c.IntersectQuery("A", B); err != nil || got != want {
+		t.Fatalf("IntersectQuery: got=%d want=%d err=%v", got, want, err)
+	}
+	// conjuntos armazenados (não envia dados)
+	if got, err := c.IntersectStored("A", "B"); err != nil || got != want {
+		t.Fatalf("IntersectStored: got=%d want=%d err=%v", got, want, err)
 	}
 }

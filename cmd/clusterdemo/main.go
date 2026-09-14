@@ -1,11 +1,14 @@
-// Command clusterdemo — demonstra o ADDB distribuído "over-the-wire": S nós
-// servem shards do conjunto A por TCP; o coordenador faz broadcast da consulta B
-// e agrega |A ∩ B|. Compara com a interseção local (1 máquina) e mede.
+// Command clusterdemo — demonstra o ADDB distribuído e COMPARA os dois modos de
+// interseção:
+//
+//	ARMazenado: |A ∩ B| com A,B já armazenados → cada nó faz o AND local; a rede
+//	            só carrega o NOME dos conjuntos (mensagens minúsculas).
+//	AD-HOC:     |A ∩ Q| com Q ad-hoc → o coordenador transmite a fatia de Q.
 //
 // Uso:
 //
-//	go run ./cmd/clusterdemo                 # S nós em loopback (127.0.0.1)
-//	go run ./cmd/clusterdemo -nodes "ip:porta,..."   # nós remotos já escutando
+//	go run ./cmd/clusterdemo                       # nós locais
+//	go run ./cmd/clusterdemo -nodes "ip:p,..."     # nós remotos
 package main
 
 import (
@@ -30,17 +33,15 @@ func buildWords(W int, density float64, seed int64) []uint64 {
 }
 
 func main() {
-	nodesFlag := flag.String("nodes", "", "lista de endereços remotos (csv); vazio = nós locais")
-	shards := flag.Int("shards", 4, "número de shards (só p/ nós locais)")
-	universeBits := flag.Int("universe", 1<<26, "tamanho do universo em bits")
-	queries := flag.Int("q", 200, "número de consultas a medir")
+	nodesFlag := flag.String("nodes", "", "endereços remotos (csv); vazio = locais")
+	shards := flag.Int("shards", 4, "nós locais")
+	universe := flag.Int("universe", 1<<26, "universo em bits")
+	reps := flag.Int("q", 500, "repetições por modo")
 	flag.Parse()
 
-	W := *universeBits / 64
-	fmt.Printf("== ADDB distribuído (over-the-wire) — universo 2^%d, %d palavras, kernel %s ==\n\n",
-		log2(*universeBits), W, simd.Name())
+	W := *universe / 64
+	fmt.Printf("== ADDB distribuído — armazenado vs ad-hoc · universo 2^%d, %d palavras ==\n\n", log2(*universe), W)
 
-	// ---- nós ----
 	var addrs []string
 	var locals []*cluster.Node
 	if *nodesFlag == "" {
@@ -48,13 +49,12 @@ func main() {
 			nd := cluster.NewNode(fmt.Sprintf("127.0.0.1:%d", 19100+i))
 			addr, err := nd.Listen()
 			if err != nil {
-				fmt.Println("erro ao escutar:", err)
+				fmt.Println("erro:", err)
 				return
 			}
 			addrs = append(addrs, addr)
 			locals = append(locals, nd)
 		}
-		fmt.Printf("nós locais: %d (%s ...)\n", len(addrs), addrs[0])
 		defer func() {
 			for _, nd := range locals {
 				nd.Close()
@@ -62,73 +62,84 @@ func main() {
 		}()
 	} else {
 		addrs = strings.Split(*nodesFlag, ",")
-		fmt.Printf("nós remotos: %d (%s)\n", len(addrs), addrs[0])
 	}
+	fmt.Printf("nós: %d (%s)\n", len(addrs), addrs[0])
 
-	// ---- conjuntos A e B ----
-	A := buildWords(W, 0.10, 1)  // A denso (10% dos bits)
-	B := buildWords(W, 0.05, 7)  // B consulta (5%)
-	fmt.Printf("conjuntos: |A| bits setados, |B| consulta — A=%d palavras\n\n", W)
+	A := buildWords(W, 0.10, 1)
+	B := buildWords(W, 0.05, 7)
+	local := simd.AndPopcount(A, B)
 
-	// ---- baseline local (1 máquina, kernel AVX-512) ----
-	t := time.Now()
-	localCnt := simd.AndPopcount(A, B)
-	dLocal := time.Since(t)
-	fmt.Printf("LOCAL (1 máquina, AVX-512):  %10s  → |A∩B| = %d\n", dLocal.Round(time.Microsecond), localCnt)
-
-	// ---- distribuído ----
 	c, err := cluster.Dial(addrs, W)
 	if err != nil {
-		fmt.Println("erro no dial:", err)
+		fmt.Println("erro:", err)
 		return
 	}
 	defer c.Close()
-	t = time.Now()
-	if err := c.Load(A); err != nil {
-		fmt.Println("erro no load:", err)
+
+	fmt.Println("\ncarregando A e B (uma vez)...")
+	t := time.Now()
+	if err := c.LoadSet("A", A); err != nil {
+		fmt.Println("erro:", err)
 		return
 	}
-	dLoad := time.Since(t)
+	if err := c.LoadSet("B", B); err != nil {
+		fmt.Println("erro:", err)
+		return
+	}
+	fmt.Printf("load: %s\n", time.Since(t).Round(time.Millisecond))
 
-	t = time.Now()
-	distCnt, err := c.IntersectCount(B)
-	dFirst := time.Since(t)
+	// correção (ambos os modos)
+	fmt.Printf("\nLOCAL: |A∩B| = %d\n", local)
+	gs, err := c.IntersectStored("A", "B")
 	if err != nil {
-		fmt.Println("erro na consulta:", err)
+		fmt.Println("erro:", err)
 		return
 	}
-	fmt.Printf("DISTRIBUÍDO (%d nós):        %10s  → |A∩B| = %d  (load inicial %s)\n",
-		len(addrs), dFirst.Round(time.Microsecond), distCnt, dLoad.Round(time.Millisecond))
+	gq, err := c.IntersectQuery("A", B)
+	if err != nil {
+		fmt.Println("erro:", err)
+		return
+	}
+	fmt.Printf("DISTRIB armazenado: %d  %s\n", gs, ok(gs == uint64(local)))
+	fmt.Printf("DISTRIB ad-hoc:     %d  %s\n", gq, ok(gq == uint64(local)))
 
-	if distCnt != uint64(localCnt) {
-		fmt.Printf("⚠️  DIVERGÊNCIA! local=%d dist=%d\n", localCnt, distCnt)
-	} else {
-		fmt.Printf("✅ resultados idênticos (local == distribuído)\n")
-	}
-
-	// ---- throughput distribuído (reusa um punhado de consultas p/ não estourar RAM) ----
-	prep := 16
-	if *queries < prep {
-		prep = *queries
-	}
-	qs := make([][]uint64, prep)
-	for i := range qs {
-		qs[i] = buildWords(W, 0.05, int64(1000+i))
-	}
+	// latência: armazenado (sem tráfego de dados)
 	t = time.Now()
-	var acc uint64
-	for i := 0; i < *queries; i++ {
-		n, err := c.IntersectCount(qs[i%prep])
-		if err != nil {
+	for i := 0; i < *reps; i++ {
+		if _, err := c.IntersectStored("A", "B"); err != nil {
 			fmt.Println("erro:", err)
 			return
 		}
-		acc += n
 	}
-	dAll := time.Since(t)
-	perQ := dAll / time.Duration(*queries)
-	fmt.Printf("\n%d consultas: %s total | %s/consulta | %.0f consultas/s (checksum=%d)\n",
-		*queries, dAll.Round(time.Millisecond), perQ.Round(time.Microsecond), float64(*queries)/dAll.Seconds(), acc)
+	dStored := time.Since(t) / time.Duration(*reps)
+
+	// latência: ad-hoc (transmite a fatia de B a cada consulta)
+	qs := make([][]uint64, 8)
+	for i := range qs {
+		qs[i] = buildWords(W, 0.05, int64(100+i))
+	}
+	t = time.Now()
+	for i := 0; i < *reps; i++ {
+		if _, err := c.IntersectQuery("A", qs[i%len(qs)]); err != nil {
+			fmt.Println("erro:", err)
+			return
+		}
+	}
+	dQuery := time.Since(t) / time.Duration(*reps)
+
+	fmt.Printf("\n-- latência por consulta (%d rep) --\n", *reps)
+	fmt.Printf("  armazenado (só nomes):  %10s   ← sem tráfego de dados\n", dStored.Round(time.Microsecond))
+	fmt.Printf("  ad-hoc (transmite B):   %10s\n", dQuery.Round(time.Microsecond))
+	if dQuery > 0 {
+		fmt.Printf("  → armazenado é %.0f× mais rápido\n", float64(dQuery)/float64(dStored))
+	}
+}
+
+func ok(b bool) string {
+	if b {
+		return "✅"
+	}
+	return "⚠️"
 }
 
 func log2(x int) int {

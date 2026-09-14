@@ -7,12 +7,9 @@ import (
 	"github.com/tgosoul2019/addb/internal/addb"
 )
 
-// ShardedCluster distribui S shards (faixas de palavras do espaço global) entre
-// nós, atribuindo cada shard a um nó via CONSISTENT HASH RING. Um nó pode
-// possuir vários shards; seu armazenamento é a concatenação das faixas deles.
-//
-// Diferença do Coordinator simples: lá a partição é fixa (em ordem de endereço);
-// aqui a pertinência é do anel → entrar/sair nó remapeia só ~1/(N+1) dos shards.
+// ShardedCluster distribui S shards (faixas de palavras) entre nós, atribuindo
+// cada shard a um nó via CONSISTENT HASH RING. Um nó pode possuir vários shards;
+// seu armazenamento é a concatenação das faixas deles, por conjunto nomeado.
 type ShardedCluster struct {
 	W      int
 	Shards int
@@ -21,8 +18,8 @@ type ShardedCluster struct {
 	conns  map[string]net.Conn
 }
 
-// NewShardedCluster monta o cluster: registra os nós no anel, atribui os shards e
-// conecta. replicas = pontos virtuais por nó.
+// NewShardedCluster monta o cluster: registra os nós no anel, atribui os shards
+// e conecta. replicas = pontos virtuais por nó.
 func NewShardedCluster(addrs []string, W, shards, replicas int) (*ShardedCluster, error) {
 	ring := addb.NewRing(replicas)
 	for _, a := range addrs {
@@ -47,15 +44,12 @@ func NewShardedCluster(addrs []string, W, shards, replicas int) (*ShardedCluster
 // Owners devolve o dono (endereço) de cada shard.
 func (sc *ShardedCluster) Owners() []string { return append([]string(nil), sc.owners...) }
 
-// wordsOfShard devolve a faixa [lo,hi) de palavras do shard s.
 func (sc *ShardedCluster) wordsOfShard(s int) (int, int) {
-	lo := s * sc.W / sc.Shards
-	hi := (s + 1) * sc.W / sc.Shards
-	return lo, hi
+	return s * sc.W / sc.Shards, (s + 1) * sc.W / sc.Shards
 }
 
 // nodeSlice concatena as faixas de palavras dos shards que pertencem a `node`.
-// A MESMA ordem é usada no Load e na consulta → alinhamento garantido.
+// A MESMA ordem é usada no LoadSet e nas consultas → alinhamento garantido.
 func (sc *ShardedCluster) nodeSlice(global []uint64, node string) []uint64 {
 	var buf []uint64
 	for s := 0; s < sc.Shards; s++ {
@@ -68,22 +62,25 @@ func (sc *ShardedCluster) nodeSlice(global []uint64, node string) []uint64 {
 	return buf
 }
 
-// Load envia a cada nó a concatenação das faixas de A dos seus shards.
-func (sc *ShardedCluster) Load(A []uint64) error {
+// LoadSet envia a cada nó a concatenação das faixas de `global` dos seus shards.
+func (sc *ShardedCluster) LoadSet(name string, global []uint64) error {
 	for node, conn := range sc.conns {
-		slice := sc.nodeSlice(A, node)
-		payload := make([]byte, 1+len(slice)*8)
-		payload[0] = opLoad
-		copy(payload[1:], bytesView(slice))
+		slice := sc.nodeSlice(global, node)
+		payload := []byte{opLoadSet}
+		payload = writeName(payload, name)
+		payload = append(payload, bytesView(slice)...)
 		if err := writeMsg(conn, payload); err != nil {
+			return err
+		}
+		if _, err := readMsg(conn); err != nil { // ack
 			return err
 		}
 	}
 	return nil
 }
 
-// IntersectCount consulta cada nó (paralelo) com a fatia dos seus shards e soma.
-func (sc *ShardedCluster) IntersectCount(B []uint64) (uint64, error) {
+// gather consulta todos os nós em paralelo e soma as contagens.
+func (sc *ShardedCluster) gather(send func(node string) []byte) (uint64, error) {
 	type res struct {
 		n   uint64
 		err error
@@ -91,10 +88,7 @@ func (sc *ShardedCluster) IntersectCount(B []uint64) (uint64, error) {
 	ch := make(chan res, len(sc.conns))
 	for node, conn := range sc.conns {
 		go func(node string, conn net.Conn) {
-			slice := sc.nodeSlice(B, node)
-			payload := make([]byte, 1+len(slice)*8)
-			payload[0] = opQuery
-			copy(payload[1:], bytesView(slice))
+			payload := send(node)
 			if err := writeMsg(conn, payload); err != nil {
 				ch <- res{0, err}
 				return
@@ -116,6 +110,27 @@ func (sc *ShardedCluster) IntersectCount(B []uint64) (uint64, error) {
 		total += r.n
 	}
 	return total, nil
+}
+
+// IntersectStored calcula |A ∩ B| para dois conjuntos ARMAZENADOS (sem trafegar
+// dados de consulta).
+func (sc *ShardedCluster) IntersectStored(a, b string) (uint64, error) {
+	return sc.gather(func(string) []byte {
+		payload := []byte{opAndStored}
+		payload = writeName(payload, a)
+		payload = writeName(payload, b)
+		return payload
+	})
+}
+
+// IntersectQuery calcula |A ∩ Q| com Q ad-hoc (envia a fatia da consulta).
+func (sc *ShardedCluster) IntersectQuery(name string, query []uint64) (uint64, error) {
+	return sc.gather(func(node string) []byte {
+		payload := []byte{opAndQuery}
+		payload = writeName(payload, name)
+		payload = append(payload, bytesView(sc.nodeSlice(query, node))...)
+		return payload
+	})
 }
 
 // Close fecha as conexões.
