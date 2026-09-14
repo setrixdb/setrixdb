@@ -46,3 +46,15 @@ func BenchmarkContains(b *testing.B) {
 		_ = addb.Contains(shard, shard[i%len(shard)])
 	}
 }
+
+// BenchmarkComputeDeterministicID mede a transmutação termo -> uint64 (termos/s).
+func BenchmarkComputeDeterministicID(b *testing.B) {
+	terms := []string{"casa", "moradia", "lar", "computação", "distribuído", "sinônimo"}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = addb.ComputeDeterministicID(terms[i%len(terms)])
+	}
+	b.StopTimer()
+	secs := b.Elapsed().Seconds()
+	b.ReportMetric(float64(b.N)/secs, "termos/s")
+}
