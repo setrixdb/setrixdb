@@ -1,32 +1,44 @@
 # Head-to-head — ADDB vs soluções de mercado
 
-> Medido nesta VPS (AMD EPYC 9J45 / Zen4, 2 vCPU) em 2026-09-14, Go 1.22.12.
-> Código: `cmd/vsbench`. Dependências **só do benchmark** (Roaring bitmap, Bloom).
+> Medido nesta VPS (AMD EPYC 9J45 / Zen4, 2 vCPU) em 2026-09-14, Go 1.22.12 + gcc 11.4 (cgo, AVX-512).
+> Código: `cmd/vsbench`. Dependências de terceiros **só do benchmark** (Roaring, Bloom).
 
 ## Membership (n = 1.000.000 chaves uint64)
 
 | Estrutura | memória | lookup | exato? |
 |---|---|---|---|
-| `map[uint64]struct{}` (Go) | 22,3 B/chave | **105,9M ops/s** | sim |
-| **MPHF (CHD) + 1 verificação** (ADDB) | **9,9 B/chave** | 96,1M ops/s | **sim** |
-| Bloom filter (1% FP) | 1,2 B/chave | 22,9M ops/s | **não** (aprox.) |
+| `map[uint64]struct{}` (Go) | 22,3 B/chave | 133,3M ops/s | sim |
+| **MPHF (CHD) + 1 verificação** (ADDB) | **9,9 B/chave** | 100,4M ops/s | **sim** |
+| Bloom filter (1% FP) | 1,2 B/chave | 23,6M ops/s | não (aprox.) |
 
-**Leitura:** o MPHF é **competitivo em velocidade** (~paridade com o `map`) e usa **~2,2× menos memória**, com membership **exata** (e devolve um ID). Um Bloom gasta **~8× menos**, mas é **aproximado** e não dá ID.
+**Leitura:** MPHF ≈ `map` em velocidade, com **~2,2× menos memória** e **membership exata** (+ ID).
 
 ## Interseção de dois conjuntos (A = B = 1M)
 
-| Cenário | sorted merge (ADDB) | Roaring | hash join (map) |
-|---|---|---|---|
-| **denso32 (realista)** | 8,0 ms | **174 µs** ✅ | 81,6 ms |
-| **aleat64 (pior caso)** | **9,5 ms** ✅ | 447 ms | 89,7 ms |
+| Estratégia | denso32 (realista) | aleat64 (pior caso) |
+|---|---|---|
+| sorted merge (ADDB, escalar) | 9,2 ms | **11,3 ms** |
+| Roaring (mercado) | 148 µs | 523 ms |
+| hash join (map) | 91,6 ms | 94,9 ms |
+| **bitset AND (Go, escalar)** | 29 µs | — |
+| **bitset AND (AVX-512, cgo)** | **6 µs** ✅ | — |
 
-- **denso32** (IDs 0..2N, como os IDs do MPHF): **Roaring é ~46× mais rápido** que o nosso merge.
-- **aleat64** (uint64 aleatórios): nosso merge **ganha** da Roaring64 (~47×) — mas é caso de nicho.
+- **denso32** = IDs 0..2N (o caso do ADDB: IDs do MPHF são densos). Roaring é rápido (148 µs), mas o **bitset AND em AVX-512 faz em 6 µs → ~24× mais rápido que o Roaring** (e ~1.500× vs o merge escalar).
+- **aleat64** = uint64 aleatórios: bitset não se aplica (universo 2⁶⁴); aí nosso merge escalar ganha da Roaring64 (~46×).
 
 ## Veredito (baseado em número)
 
-1. **Membership: competitivo.** MPHF ≈ `map` em velocidade, com 2,2× menos memória e ID exato. Contra hash table, estamos **no páreo (não dominantes)**.
-2. **Interseção: estamos ATRÁS.** Na carga realista (IDs densos), a **Roaring nos bate por ~46×** — porque usa **bitmaps comprimidos + SIMD**. Nosso merge é **escalar**.
-3. **O caminho para ficar promissor de verdade:** (a) **kernel SIMD de interseção** (Lemire/AVX-512 — a CPU daqui **tem** AVX-512); (b) ou representar os shards como **bitmap**; (c) adotar o MPHF faz os IDs virarem **densos 32-bit**, o que ajuda **as duas** abordagens.
+1. **Membership:** competitivo (paridade com `map`, 2,2× menos memória, ID exato).
+2. **Interseção:** com **IDs densos (via MPHF) + bitset + AVX-512**, **superamos o Roaring por ~24×**. O vetor escalar perdia (9 ms vs 148 µs); o **SIMD virou o jogo**.
+3. **Ressalvas honestas:**
+   - O bitset é **não-comprimido** (244 KB p/ universo de 2M) — Roaring comprime. Para universos **esparsos/gigantes**, o Roaring pode voltar a ganhar em memória.
+   - O kernel AVX-512 **exige CPU com AVX-512** (temos) — há fallback Go (29 µs, ainda ~5× melhor que Roaring aqui).
+   - Sem o MPHF, os IDs ficam esparsos em 2⁶⁴ e o bitset denso não funciona.
 
-**Resposta curta à pergunta "é promissor?":** em **membership** sim; em **interseção**, ainda **não** — precisamos do SIMD pra alcançar/passar o estado da arte. É exatamente o próximo item do board.
+**Resposta à pergunta "é promissor?":** **sim — e agora com número:** no cenário-alvo (IDs **densos** vindos do MPHF) o conjunto **MPHF + bitset + AVX-512** é **líder**, batendo o estado da arte na interseção. O diferencial que faltava era usar SIMD + IDs densos juntos.
+
+## Próximos passos
+
+- Extração vetorizada dos elementos da interseção (não só o cardinal).
+- Testar universos esparsos/grandes (Roaring vs bitset vs híbrido).
+- Levar pro NPU quando houver hardware (aqui só AVX-512).
