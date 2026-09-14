@@ -9,7 +9,7 @@ func TestPerfectBuilding(t *testing.T) {
 		for i := range keys {
 			keys[i] = mix(uint64(i) * 0x9E3779B97F4A7C15)
 		}
-		h, err := Build(keys, 0.95, 42)
+		h, err := Build(keys, 2.0, 42)
 		if err != nil {
 			t.Fatalf("n=%d: build falhou: %v", n, err)
 		}
@@ -40,7 +40,7 @@ func TestNoFalsePositives(t *testing.T) {
 	for i := range keys {
 		keys[i] = mix(uint64(i))
 	}
-	h, err := Build(keys, 0.95, 7)
+	h, err := Build(keys, 2.0, 7)
 	if err != nil {
 		t.Fatal(err)
 	}

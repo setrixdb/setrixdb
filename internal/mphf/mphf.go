@@ -1,15 +1,13 @@
 // Package mphf implementa um Minimal Perfect Hash Function (MPHF) no estilo
-// CHD (Czech–Havas–Majewski, 1997) escrito do zero — sem dependência de
-// bibliotecas de terceiros (zero licença pendurada no repo).
+// CHD (Czech–Havas–Majewski) escrito do zero — sem dependência de terceiros.
 //
-// Propriedade do MPHF: dado um CONJUNTO FECHADO de N chaves, produz um mapa
-// chave -> ID em [0, N) SEM COLISÃO. É o instrumento certo para o dicionário
-// do ADDB (~50 mi de termos conhecidos).
+// CHD v2: separa o NÚMERO DE BUCKETS (n/λ) do TAMANHO DA TABELA (n·(1+ε)).
+// A v1 confundia os dois (M = n/λ para ambos), o que estourava a largura do
+// deslocamento em load factor alto. Agora o deslocamento é por bucket sobre
+// uma tabela global com folga ε → deslocamentos pequenos → bem menos bits.
 //
-// ATENÇÃO (semântica): o MPHF mapeia a chave para um ID, mas NÃO decide
-// membership. Uma chave de fora cai num slot ocupado com probabilidade ≈ load
-// factor. Para membership exata, o dicionário confere o termo armazenado no
-// índice devolvido (uma comparação).
+// Propriedade: mapeia N chaves → ID em [0, N) SEM colisão. NÃO decide
+// membership (a verificação do termo fica no dicionário).
 package mphf
 
 import (
@@ -21,18 +19,19 @@ import (
 // CHD é um perfect hash construído sobre um conjunto fixo de chaves.
 type CHD struct {
 	N     uint32   // número de chaves
-	M     uint32   // número de buckets/slots
-	gpack []uint64 // deslocamentos (displacement) empacotados com gw bits cada
+	M     uint32   // tamanho da tabela (slots) = N*(1+ε)
+	NB    uint32   // número de buckets = N/λ
+	gpack []uint64 // deslocamentos (displacement) empacotados, gw bits cada (NB entradas)
 	gw    uint8    // largura em bits de cada deslocamento
 	maxD  uint32   // maior deslocamento usado
-	words []uint64 // bitset de slots ocupados
+	words []uint64 // bitset de slots ocupados (M bits)
 	l1    []uint32 // rank nível 1 (bloco de 512 bits)
-	l2    []uint16 // rank nível 2 (palavra de 64 bits)
 	seed1 uint64
 	seed2 uint64
 }
 
-const maxDisplacement = 1<<16 - 1
+const maxDisplacement = 1<<24 - 1
+const defaultEpsilon = 0.23
 
 // mix é o finalizador splitmix64 (avalanche forte e bijetivo).
 func mix(x uint64) uint64 {
@@ -42,36 +41,45 @@ func mix(x uint64) uint64 {
 	return x ^ (x >> 31)
 }
 
-func (c *CHD) h1(k uint64) uint64 { return mix(k^c.seed1) % uint64(c.M) }
+func (c *CHD) h1(k uint64) uint64 { return mix(k^c.seed1) % uint64(c.NB) }
 func (c *CHD) h2(k uint64) uint64 { return mix(k^c.seed2) % uint64(c.M) }
 
 // ErrBuild indica falha de construção mesmo após retries.
-var ErrBuild = errors.New("mphf: construção falhou (reduza o load factor)")
+var ErrBuild = errors.New("mphf: construção falhou (reduza λ ou aumente ε)")
 
-// Build constrói o MPHF para o conjunto de chaves. lambda é o load factor
-// alvo (chaves/slots); recomendado ~0.95.
+// Build constrói o MPHF. λ é o fator de carga dos BUCKETS (chaves/bucket);
+// ε (folga da tabela) usa o default. Recomendado: λ ≈ 2.0.
 func Build(keys []uint64, lambda float64, seed uint64) (*CHD, error) {
+	return BuildOpts(keys, lambda, defaultEpsilon, seed)
+}
+
+// BuildOpts constrói o MPHF com controle explícito de λ e ε.
+func BuildOpts(keys []uint64, lambda, epsilon float64, seed uint64) (*CHD, error) {
 	n := len(keys)
 	if n == 0 {
 		return &CHD{N: 0, M: 0}, nil
 	}
-	M := uint32(float64(n)/lambda) + 1
-	c := &CHD{N: uint32(n), M: M, seed1: seed}
+	NB := uint32(float64(n)/lambda) + 1
+	M := uint32(float64(n)*(1+epsilon)) + 1
+	if M <= NB {
+		M = NB + 1
+	}
+	c := &CHD{N: uint32(n), M: M, NB: NB, seed1: seed}
 
-	// 1. contagem por bucket (h1 não depende do sal de colocação).
-	counts := make([]int32, M)
+	// CSR: chaves agrupadas por bucket (h1).
+	counts := make([]int32, NB)
 	for _, k := range keys {
 		counts[c.h1(k)]++
 	}
-	starts := make([]int32, M)
+	starts := make([]int32, NB)
 	var s int32
-	for j := 0; j < int(M); j++ {
+	for j := 0; j < int(NB); j++ {
 		starts[j] = s
 		s += counts[j]
 	}
-	keyAt := make([]uint32, n) // CSR: chaves agrupadas por bucket
-	for j := 0; j < int(M); j++ {
-		counts[j] = starts[j] // reusa como cursor
+	keyAt := make([]uint32, n)
+	for j := 0; j < int(NB); j++ {
+		counts[j] = starts[j]
 	}
 	for i, k := range keys {
 		j := c.h1(k)
@@ -79,32 +87,33 @@ func Build(keys []uint64, lambda float64, seed uint64) (*CHD, error) {
 		counts[j]++
 	}
 
-	// 2. buckets por tamanho decrescente.
-	order := make([]int32, 0, M)
-	for j := 0; j < int(M); j++ {
+	// buckets por tamanho decrescente (maiores primeiro → tabela ainda vazia).
+	order := make([]int32, 0, NB)
+	for j := 0; j < int(NB); j++ {
 		if counts[j] > starts[j] {
 			order = append(order, int32(j))
 		}
 	}
 	sort.Slice(order, func(a, b int) bool {
-		ja, jb := order[a], order[b]
-		return (counts[ja] - starts[ja]) > (counts[jb] - starts[jb])
+		return (counts[order[a]] - starts[order[a]]) > (counts[order[b]] - starts[order[b]])
 	})
 
-	// 3. colocação com retries de sal (bucket com colisão de h2 é
-	//    irrecuperável por deslocamento — retry resolve; ~padrão CHD).
-	G := make([]uint16, M)
+	G := make([]uint32, NB)
 	c.words = make([]uint64, (uint64(M)+63)/64)
-	const maxAttempts = 256
+	const maxAttempts = 1024
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		c.seed2 = mix(seed + 1 + uint64(attempt)*0x9E3779B97F4A7C15)
+		h2vals := make([]uint64, n)
+		for i, k := range keys {
+			h2vals[i] = c.h2(k)
+		}
 		for i := range G {
 			G[i] = 0
 		}
 		for i := range c.words {
 			c.words[i] = 0
 		}
-		if c.placeAll(keys, keyAt, starts, counts, order, G) {
+		if c.placeAll(keyAt, starts, counts, order, G, h2vals) {
 			c.packG(G)
 			c.buildRank()
 			return c, nil
@@ -113,8 +122,9 @@ func Build(keys []uint64, lambda float64, seed uint64) (*CHD, error) {
 	return nil, ErrBuild
 }
 
-// placeAll tenta posicionar todos os buckets com o sal atual. true = sucesso.
-func (c *CHD) placeAll(keys []uint64, keyAt []uint32, starts, ends []int32, order []int32, G []uint16) bool {
+// placeAll posiciona os buckets (maiores primeiro). Para cada bucket, acha o
+// deslocamento d tal que todos os slots caem livres E distintos entre si.
+func (c *CHD) placeAll(keyAt []uint32, starts, ends []int32, order []int32, G []uint32, h2vals []uint64) bool {
 	M := uint64(c.M)
 	for _, jb := range order {
 		j := int(jb)
@@ -123,13 +133,13 @@ func (c *CHD) placeAll(keys []uint64, keyAt []uint32, starts, ends []int32, orde
 		for d := uint64(0); d < maxDisplacement && !ok; d++ {
 			good := true
 			for a := lo; a < hi && good; a++ {
-				posA := (c.h2(keys[keyAt[a]]) + d) % M
+				posA := (h2vals[keyAt[a]] + d) % M
 				if bitSet(c.words, posA) {
 					good = false
 					break
 				}
 				for b := lo; b < a; b++ {
-					if (c.h2(keys[keyAt[b]])+d)%M == posA {
+					if (h2vals[keyAt[b]]+d)%M == posA {
 						good = false
 						break
 					}
@@ -137,9 +147,9 @@ func (c *CHD) placeAll(keys []uint64, keyAt []uint32, starts, ends []int32, orde
 			}
 			if good {
 				for a := lo; a < hi; a++ {
-					setBit(c.words, (c.h2(keys[keyAt[a]])+d)%M)
+					setBit(c.words, (h2vals[keyAt[a]]+d)%M)
 				}
-				G[j] = uint16(d)
+				G[j] = uint32(d)
 				ok = true
 			}
 		}
@@ -150,23 +160,23 @@ func (c *CHD) placeAll(keys []uint64, keyAt []uint32, starts, ends []int32, orde
 	return true
 }
 
-// packG empacota os deslocamentos na largura mínima de bits e descarta G.
-func (c *CHD) packG(G []uint16) {
-	var maxD uint16
+// packG empacota os deslocamentos na largura mínima de bits.
+func (c *CHD) packG(G []uint32) {
+	var maxD uint32
 	for _, d := range G {
 		if d > maxD {
 			maxD = d
 		}
 	}
-	c.maxD = uint32(maxD)
-	w := bits.Len16(maxD)
+	c.maxD = maxD
+	w := bits.Len32(maxD)
 	if w == 0 {
 		w = 1
 	}
 	c.gw = uint8(w)
-	nwords := (int(c.M)*w+63)/64 + 1
+	nwords := (int(c.NB)*w+63)/64 + 1
 	c.gpack = make([]uint64, nwords)
-	for j := 0; j < int(c.M); j++ {
+	for j := 0; j < int(c.NB); j++ {
 		v := uint64(G[j])
 		bp := uint64(j) * uint64(w)
 		wi := bp >> 6
@@ -190,7 +200,7 @@ func (c *CHD) gval(j uint64) uint64 {
 	return v & ((uint64(1) << c.gw) - 1)
 }
 
-// Lookup devolve o ID (0..N-1) da chave. ok=false se a chave não pertence ao conjunto.
+// Lookup devolve o ID (0..N-1) da chave. ok=false se o slot está vazio.
 func (c *CHD) Lookup(k uint64) (uint32, bool) {
 	if c.M == 0 {
 		return 0, false
@@ -203,33 +213,30 @@ func (c *CHD) Lookup(k uint64) (uint32, bool) {
 	return c.rank(uint32(pos)), true
 }
 
+// buildRank monta o rank de 1 nível (bloco de 512 bits = 8 palavras).
 func (c *CHD) buildRank() {
 	nw := len(c.words)
 	nb := (nw + 7) / 8
 	c.l1 = make([]uint32, nb+1)
-	c.l2 = make([]uint16, nw+1)
 	var total uint32
 	for b := 0; b < nb; b++ {
 		c.l1[b] = total
-		var within uint32
-		for w := 0; w < 8; w++ {
-			idx := b*8 + w
-			if idx >= nw {
-				break
-			}
-			c.l2[idx] = uint16(within)
-			within += uint32(bits.OnesCount64(c.words[idx]))
+		for w := b * 8; w < (b+1)*8 && w < nw; w++ {
+			total += uint32(bits.OnesCount64(c.words[w]))
 		}
-		total += within
 	}
 	c.l1[nb] = total
 }
 
+// rank devolve o número de bits setados antes de pos (inclusive) → ID.
 func (c *CHD) rank(pos uint32) uint32 {
 	w := pos >> 6
 	off := pos & 63
 	b := w >> 3
-	r := c.l1[b] + uint32(c.l2[w])
+	r := c.l1[b]
+	for i := b << 3; i < w; i++ {
+		r += uint32(bits.OnesCount64(c.words[i]))
+	}
 	if off > 0 {
 		r += uint32(bits.OnesCount64(c.words[w] & ((uint64(1) << off) - 1)))
 	}
@@ -243,20 +250,19 @@ func (c *CHD) BitsPerKey() float64 {
 	}
 	t := uint64(len(c.gpack)) * 64
 	t += uint64(len(c.words)) * 64
-	t += uint64(len(c.l2)) * 16
 	t += uint64(len(c.l1)) * 32
 	return float64(t) / float64(c.N)
 }
 
 // Bytes devolve o tamanho total da estrutura em bytes.
 func (c *CHD) Bytes() uint64 {
-	return uint64(len(c.gpack))*8 + uint64(len(c.words))*8 + uint64(len(c.l2))*2 + uint64(len(c.l1))*4
+	return uint64(len(c.gpack))*8 + uint64(len(c.words))*8 + uint64(len(c.l1))*4
 }
 
-// MaxD devolve o maior deslocamento usado e a largura em bits por bucket.
+// MaxD devolve o maior deslocamento usado.
 func (c *CHD) MaxD() uint32 { return c.maxD }
 
-// GWidth devolve a largura em bits usada por deslocamento na estrutura empacotada.
+// GWidth devolve a largura em bits por deslocamento.
 func (c *CHD) GWidth() uint8 { return c.gw }
 
 func bitSet(w []uint64, i uint64) bool { return w[i>>6]&(1<<(i&63)) != 0 }
