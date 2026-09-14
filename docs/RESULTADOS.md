@@ -87,6 +87,7 @@ bits/chave por load factor (n=1M): λ=0,90 → **12,57** · λ=0,95 → 15,07 ·
 `internal/simd/` (cgo). Instruções: `vpandq` + `vpopcntq`. **Dispatch em runtime** (AVX-512 se houver, senão escalar) — cobre AVX10.2.
 
 - bitset AND AVX-512: **6 µs** (vs 148 µs Roaring) no denso32.
+- **Extração dos elementos (`simd.ExtractSet`):** AVX-512 **1,58 ms** vs escalar **13,9 ms** (~8,8×) — 16K palavras, 1M bits setados.
 - Portável: compila sem exigir AVX-512; escolhe a versão com `__builtin_cpu_supports`.
 
 ---
