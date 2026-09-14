@@ -146,7 +146,8 @@ Teste real: função `ExtractSet` (`internal/addb/extract.go`).
 2. **Membership:** paridade com `map`, 2,2× menos memória.
 3. **Interseção:** bitset denso + AVX-512 → **líder** (24–30× vs Roaring), denso e esparso (enquanto couber).
 4. **Escala:** sharding por range distribui o compute; memória horizontal = multi-máquina + híbrido bitset/roaring.
-5. **Posicionamento mantido:** membership/interseção aritmética exata — **não** vira NoSQL nem vetorial.
+5. **Distribuído:** nós por shard over-the-wire (TCP) — correto em loopback e VPS↔nó remoto; custo = rede.
+6. **Posicionamento mantido:** membership/interseção aritmética exata — **não** vira NoSQL nem vetorial.
 
 _Reproduzível: `go test ./...` + `go run ./cmd/{setbench,vsbench,sparsebench,shardbench,mphfbench}`._
 
@@ -166,3 +167,17 @@ _Reproduzível: `go test ./...` + `go run ./cmd/{setbench,vsbench,sparsebench,sh
 Interseção (1M×1M): range **densa** → bitset AVX-512 **4 µs**; universo **esparso** → SparseSet merge **9,91 ms** vs Roaring64 **105,9 ms** (merge ~10× melhor que roaring64 em 64-bit esparso).
 
 **Veredito:** o bitset denso é imbatível em velocidade, mas a memória é `universo/8`. O **híbrido resolve**: faixas quentes = bitset (AVX-512), cauda fria = esparso → memória ∝ **dados**, não ∝ universo.
+
+---
+
+## 11. Distribuído (over-the-wire)
+
+`internal/cluster/` (TCP binário, zero-copy, sem deps) + `cmd/clusterdemo` + `cmd/clusternode`. Nós servem um **shard** (fatia de palavras do bitset global) por TCP; o coordenador faz **broadcast paralelo** da consulta e soma |A_shard ∩ B|.
+
+| Cenário | Resultado |
+|---|---|
+| Correção (local vs distribuído) | **idêntico** em todos os testes |
+| 4 nós locais (loopback), universo 2²⁶ | local 282 µs · distribuído **3,3 ms/consulta** (307 q/s) |
+| **VPS ↔ nó remoto** (VPN), universo 2²⁴, 2 shards | correto; **275 ms/consulta** (rede-bound: link WG ~2 MB/s) |
+
+**Veredito:** o ADDB escala **horizontalmente** — memória e compute distribuídos entre máquinas (a peça que faltava pra "cluster"). O custo é a **rede** (broadcast da consulta); universos maiores pedem consulta comprimida/particionada.
