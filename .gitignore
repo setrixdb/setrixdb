@@ -1,0 +1,13 @@
+# Binários
+/addb
+/benchmark
+*.exe
+*.test
+*.out
+
+# Cobertura
+coverage.txt
+
+# IDE
+.idea/
+.vscode/
