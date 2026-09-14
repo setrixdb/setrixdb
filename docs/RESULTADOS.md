@@ -181,3 +181,18 @@ Interseção (1M×1M): range **densa** → bitset AVX-512 **4 µs**; universo **
 | **VPS ↔ nó remoto** (VPN), universo 2²⁴, 2 shards | correto; **275 ms/consulta** (rede-bound: link WG ~2 MB/s) |
 
 **Veredito:** o ADDB escala **horizontalmente** — memória e compute distribuídos entre máquinas (a peça que faltava pra "cluster"). O custo é a **rede** (broadcast da consulta); universos maiores pedem consulta comprimida/particionada.
+
+---
+
+## 12. Hash ring — topologia dinâmica do cluster
+
+`internal/addb/ring.go` (consistent hash ring, membrosia dinâmica) + `cmd/ringbench`. 1M IDs, 2000 pontos virtuais/nó.
+
+| nós | add→remap (ADDB) | balance máx | módulo (add→remap) |
+|---|---|---|---|
+| 4 | 18% (ideal 20%) | 23% (ideal 25%) | 80% |
+| 8 | 8% (ideal 11%) | 15% (ideal 12%) | 89% |
+| 16 | 7% (ideal 6%) | 9% (ideal 6%) | 94% |
+| 64 | 2% (ideal 1,5%) | 3% (ideal 1,6%) | 99% |
+
+**Veredito:** entrar/sair um nó remapeia só ~1/(N+1) dos IDs (vs ~tudo no módulo ingênuo) — a base pra **rebalancear o cluster sem re-shuffle total**. É a peça de topologia que casa com o plano de clusterizar o banco em instâncias (plataforma de nuvem).
