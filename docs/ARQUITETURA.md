@@ -1,81 +1,103 @@
 # Arquitetura — ADDB
 
-Detalhamento técnico do **Arithmetic Database**. Reconstruído a partir do prompt do
-Tião (as seções iniciais originais chegaram truncadas — ver `ESPECIFICACAO.md`).
+Detalhamento técnico do **Arithmetic Database**, conforme a especificação do Tião.
 
 ## 1. Visão geral
 
 ADDB abandona os pilares tradicionais de um banco (relações, índices B-tree,
-hashing, vetores) e aposta em **uma única primitiva**: a **igualdade aritmética de
-inteiros de 64 bits**. Tudo o mais — paralelismo, distribuição, integração com
-hardware — deriva dela.
+hashing de strings em runtime, vetores) e aposta em **uma única primitiva**:
+a **aritmética determinística sobre inteiros de 64 bits**.
 
-- **Unidade atômica:** `uint64`.
-- **Armazenamento:** *shard* contíguo (`[]uint64`) — cache-friendly e DMA-friendly.
+- **Unidade atômica:** `uint64` (o dado *é* o número).
+- **Transmutação simbólica:** qualquer termo UTF-8 vira um ID `uint64`
+  **determinístico**, em tempo `O(L)` — sem processar strings na busca.
+- **Armazenamento:** *shards* contíguos (`[]uint64`) — cache-friendly e DMA-friendly.
 - **Busca:** casamento por igualdade, *branchless*, vetorizável.
-- **Escala:** paralelismo de dados (particionamento do *batch*) + distribuição por
-  hash ring.
+- **Escala:** paralelismo de dados (goroutines) + distribuição por hash ring.
 
-## 2. Por que "puramente aritmético"?
+## 2. Dimensionamento (footprint ~1 GB de RAM)
 
-| Abordagem tradicional | ADDB |
-|---|---|
-| B-tree / hash index | varredura aritmética vetorizada |
-| Ponteiros entre nós | IDs `uint64` contíguos |
-| Busca vetorial (similaridade) | igualdade exata |
-| Alocações no caminho quente | zero-copy / zero-alloc |
+| Componente | Escala | Tamanho |
+|---|---|---|
+| Dicionário Global UTF-8 | ~50 mi de termos | ~400 MB (IDs `uint64` contínuos) |
+| Base de Sinônimos | ~50 mi de conexões | ~460 MB (*flat arrays* + offsets `uint32`) |
+| **Total** | — | **~1,0 GB** |
 
-O ganho: o compilador (e o hardware) consegue transformar o laço interno em
-**instruções SIMD**, processando várias comparações por ciclo.
+## 3. Mapeamento posicional determinístico
 
-## 3. Kernel de busca
+`ComputeDeterministicID` (`internal/addb/hash.go`):
+
+```
+ID = Σ_{i=0}^{L-1} ( UTF8(c_i) + i + 1 ) · B^i   (mod 2^64),  B = 31
+```
+
+- **Base multiplicativa** `B = 31` e posição `i` entram na conta ⇒ **anagramas
+  diferem** (`"casa"` ≠ `"saca"`).
+- Somatório em `uint64` ⇒ *wrap-around* mod 2^64, sem custo.
+- Custo `O(L)`, puramente aritmético (sem alocação, sem mapa de strings).
+
+> Nota: em Go, `range` sobre `string` itera por *rune*, mas o índice `i` é o
+> deslocamento em **bytes**. A fórmula usa esse índice posicional.
+
+## 4. Base de sinônimos em flat arrays
+
+`FlatSynonymStorage` (`internal/addb/synonyms.go`) — **sem maps nativos**:
+
+```
+SynonymIDs: [ s0 s1 s2 | s3 s4 | … ]   // todos os sinônimos concatenados
+Offsets:    [ 0        3      …    ]   // início da fatia de cada termo
+Lengths:    [ 3        2      …    ]   // quantidade de sinônimos
+Terms:      [ t0       t1     …    ]   // termo dono da fatia
+```
+
+A fatia de um termo `k` é `SynonymIDs[Offsets[k] : Offsets[k]+Lengths[k]]`.
+Busca do termo por varredura em `Terms` (em produção: ordenar + busca binária).
+
+## 5. Kernel de busca
 
 ```go
 func Contains(shard []uint64, q uint64) bool {
 	var found uint64
 	for _, v := range shard {
-		// Igualdade branchless: x==0 -> 1, senão 0.
 		x := v ^ q
-		eq := 1 - ((x | (^x + 1)) >> 63)
+		eq := 1 - ((x | (^x + 1)) >> 63) // 1 se v==q, 0 caso contrário
 		found |= eq
 	}
 	return found == 1
 }
 ```
 
-Sem `if` dentro do laço quente ⇒ sem *branch misprediction*; o *auto-vectorizer*
-do Go/GC converte isso em operações de lane.
+Sem `if` no laço quente ⇒ sem *branch misprediction*; forma amigável ao
+*auto-vectorizer* (AVX-512: `vpcmpeqq` + `kortest`).
 
-## 4. Paralelismo
+## 6. Paralelismo
 
-`ParallelSearchEngine(batch, shard)`:
+`ParallelSearchEngine(queryIDs, databaseShard)` recebe o termo principal **e os
+sinônimos já resolvidos em inteiros** e dispara a busca concorrente.
 
-1. Fatia o **batch** de consultas em `GOMAXPROCS(0)` pedaços;
-2. Cada worker varre o shard inteiro para o seu pedaço;
-3. Os resultados locais são **mergeados preservando a ordem** do batch, sem duplicatas.
+A especificação original usa **uma goroutine por ID** com `chan uint64`. A
+implementação neste repo **endurece** isso para um **pool de workers** limitado a
+`GOMAXPROCS(0)` — mesmo resultado (ordem preservada, sem duplicatas), porém sem
+risco de explosão de goroutines em lotes grandes. Ver `internal/addb/search.go`.
 
-O gargalo é memória, não CPU — por isso a ênfase em contiguidade e zero-copy.
-
-## 5. Zero-copy / DMA para NPU
+## 7. Zero-copy / DMA para NPU
 
 `UnsafePtr(shard)` devolve o endereço da *backing array* para drivers C/C++.
-Combinado com *pinning* de memória, o mesmo buffer vai e volta da NPU sem cópia.
+Combinado com *pinning*, o mesmo buffer vai e volta da NPU sem cópia.
 
-> ⚠️ Regras de segurança: o shard precisa permanecer vivo e não realocado durante a
-> transferência; concorrência com GC sobre slices longos exige *pinning* explícito.
+> ⚠️ O shard precisa permanecer vivo e não realocado durante a transferência.
 
-## 6. Consistent Hash Ring
+## 8. Consistent Hash Ring
 
-`ring.go` implementa um anel de hashes para rotear IDs entre nós:
+`ring.go` roteia IDs `uint64` entre nós sem re-hash total (`AddNode`/`RemoveNode`
+movem apenas os segmentos afetados; `Route(id)` devolve o nó dono). Pacotes
+binários compactos, enviáveis por **UDP/gRPC**.
 
-- `AddNode` / `RemoveNode` movem apenas os segmentos afetados (*minimal churn*);
-- `Route(id)` mapeia o ID para o nó responsável;
-- Pacotes de roteamento são **binários** (ID `uint64` + payload), enviáveis por UDP/gRPC.
+## 9. Limites e riscos
 
-## 7. Limites e riscos
-
-- Busca por igualdade **pura** não responde a *range queries* nem a similaridade —
-  é um **pré-filtro**, não um banco de propósito geral.
-- Varredura linear só compensa com shards que caibam em RAM e/ou com SIMD.
-- Para grandes cardinalidades, considerar **shards ordenados + busca binária** ou
-  **bitmaps** como evolução (mantendo a aritmética pura).
+- Igualdade **pura** não responde a *range queries* nem a similaridade — é um
+  **pré-filtro**, não um banco de propósito geral.
+- Varredura linear só compensa com shards em RAM e/ou com SIMD.
+- Risco de **colisão de hash**: o mapa posicional é determinístico, mas não é
+  *injetivo* por construção (mod 2^64). Em produção, validar a taxa de colisão no
+  dicionário real (50 mi de termos) e, se preciso, acrescentar um *salt*/chave.

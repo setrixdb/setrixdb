@@ -69,7 +69,7 @@ memória contíguo** (`[]uint64`) que pode ser entregue ao hardware por
 - **Shard:** `[]uint64` contíguo, imutável durante a busca.
 - **Consulta (batch):** `[]uint64` — vários IDs buscados numa única chamada.
 
-## 4. Busca paralela (exemplo)
+## 4. Mapeamento determinístico + busca paralela (exemplo)
 
 ```go
 package main
@@ -81,22 +81,26 @@ import (
 )
 
 func main() {
-	// 1-2. IDs de exemplo (domínio do problema)
-	const (
-		idCasa    uint64 = 1001
-		idMoradia uint64 = 1002
-		idLar     uint64 = 1003
-	)
+	// 1. Transmutação simbólica: termo UTF-8 -> ID uint64 determinístico.
+	idCasa := addb.ComputeDeterministicID("casa")
+	idMoradia := addb.ComputeDeterministicID("moradia")
+	idLar := addb.ComputeDeterministicID("lar")
+	fmt.Printf("ID ('casa'): %d · ID ('moradia'): %d · ID ('lar'): %d\n", idCasa, idMoradia, idLar)
 
-	// 3. Shard de memória contíguo em RAM
+	// 2. Base de sinônimos em flat arrays (sem maps nativos).
+	syn := addb.NewSynonymStorage([]addb.SynonymEntry{
+		{Term: idCasa, Synonyms: []uint64{idMoradia, idLar}},
+	})
+
+	// 3. Lote de busca = termo + sinônimos, já em inteiros.
+	searchBatch := append([]uint64{idCasa}, syn.Synonyms(idCasa)...)
+
+	// 4. Shard de memória contíguo em RAM.
 	ramDatabaseShard := []uint64{idCasa, idMoradia, idLar, 99999999, 88888888}
 
-	// 4. Execução da busca paralela
-	searchBatch := []uint64{idCasa, 88888888, idLar, 12345678}
+	// 5. Busca paralela.
 	matches := addb.ParallelSearchEngine(searchBatch, ramDatabaseShard)
-
 	fmt.Printf("Busca paralela concluída. IDs encontrados em RAM/NPU: %v\n", matches)
-	// → IDs encontrados em RAM/NPU: [1001 88888888 1003]
 }
 ```
 
@@ -144,6 +148,8 @@ addb/
 │   ├── ESPECIFICACAO.md          ← prompt de especificação original
 │   └── ARQUITETURA.md            ← detalhamento técnico
 ├── internal/addb/
+│   ├── hash.go                   ← ComputeDeterministicID (termo UTF-8 -> uint64)
+│   ├── synonyms.go               ← FlatSynonymStorage (flat arrays + offsets)
 │   ├── search.go                 ← kernel aritmético + busca paralela + DMA
 │   └── ring.go                   ← consistent hash ring
 ├── examples/busca_paralela/main.go
