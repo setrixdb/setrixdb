@@ -37,6 +37,19 @@
 
 **Resposta à pergunta "é promissor?":** **sim — e agora com número:** no cenário-alvo (IDs **densos** vindos do MPHF) o conjunto **MPHF + bitset + AVX-512** é **líder**, batendo o estado da arte na interseção. O diferencial que faltava era usar SIMD + IDs densos juntos.
 
+## Interseção em universo ESPARSO (2^26 = 67M, A = B = 1M)
+
+| Estratégia | tempo | memória |
+|---|---|---|
+| **bitset AND (AVX-512)** | **303 µs** | 8,2 MB |
+| bitset AND (Go) | 672 µs | 8,2 MB |
+| Roaring64 | 9,26 ms | ~2,0 MB |
+| sorted merge | 9,11 ms | — |
+
+> Mesmo no caso "esparso" o **bitset + AVX-512 ganha (~30× vs Roaring)** — porque o bitset de 67M de bits (8 MB) ainda cabe em memória e o AND vetorizado varre em O(universo/64). O Roaring comprime melhor (2 MB vs 8 MB), mas é mais lento (overhead de containers).
+>
+> **Crossover real:** o bitset só perde quando o universo é **tão grande que o bitset não cabe em RAM** (ex.: universo 2³² = 512 MB/set; 2³⁴ = 2 GB/set). Aí o Roaring (comprimido) vira a opção — ou um esquema híbrido (bitset por chunk + roaring por faixa).
+
 ## Próximos passos
 
 - Extração vetorizada dos elementos da interseção (não só o cardinal).
