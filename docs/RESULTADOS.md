@@ -141,3 +141,20 @@ Teste real: função `ExtractSet` (`internal/addb/extract.go`).
 5. **Posicionamento mantido:** membership/interseção aritmética exata — **não** vira NoSQL nem vetorial.
 
 _Reproduzível: `go test ./...` + `go run ./cmd/{setbench,vsbench,sparsebench,shardbench,mphfbench}`._
+
+---
+
+## 10. Híbrido denso+esparso (a parede de memória)
+
+`internal/addb/sparseset.go` (SparseSet, merge two-pointer) + `cmd/hybridbench`. Universo **2³⁶** (68,7 bi IDs), 4M chaves.
+
+| Representação | memória (2³⁶, 4M) |
+|---|---|
+| bitset denso (universo/8) | **8,59 GB** (não cabe) |
+| SparseSet (chaves×8) | 32 MB |
+| Roaring64 (comprimido) | 10,05 MB |
+| **híbrido** (95% hot 2²⁰ + 5% cauda) | **1,73 MB** |
+
+Interseção (1M×1M): range **densa** → bitset AVX-512 **4 µs**; universo **esparso** → SparseSet merge **9,91 ms** vs Roaring64 **105,9 ms** (merge ~10× melhor que roaring64 em 64-bit esparso).
+
+**Veredito:** o bitset denso é imbatível em velocidade, mas a memória é `universo/8`. O **híbrido resolve**: faixas quentes = bitset (AVX-512), cauda fria = esparso → memória ∝ **dados**, não ∝ universo.
