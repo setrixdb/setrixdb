@@ -26,6 +26,7 @@ import (
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/tgosoul2019/addb/internal/addb"
 	"github.com/tgosoul2019/addb/internal/mphf"
+	"github.com/tgosoul2019/addb/internal/simd"
 )
 
 func mix(x uint64) uint64 {
@@ -220,4 +221,23 @@ func runIntersect(label string, n int, rng *rand.Rand, dense bool) {
 	fmt.Printf("  %-22s %12s %12s %10d\n", "sorted merge (ADDB)", dS.Round(time.Microsecond), "-", len(res))
 	fmt.Printf("  %-22s %12s %12s %10d\n", "Roaring", dR.Round(time.Microsecond), "-", rcard)
 	fmt.Printf("  %-22s %12s %12s %10d\n", "hash join (map)", dH.Round(time.Microsecond), "-", len(seen))
+
+	if dense {
+		bsA := addb.NewBitset(uint64(2 * n))
+		bsB := addb.NewBitset(uint64(2 * n))
+		for _, k := range A {
+			bsA.Set(k)
+		}
+		for _, k := range B {
+			bsB.Set(k)
+		}
+		t = time.Now()
+		cGo := bsA.AndPopcount(bsB)
+		dGo := time.Since(t)
+		t = time.Now()
+		cSimd := simd.AndPopcount(bsA.Words, bsB.Words)
+		dSimd := time.Since(t)
+		fmt.Printf("  %-22s %12s %12s %10d\n", "bitset AND (Go)", dGo.Round(time.Microsecond), fmt.Sprintf("%d KB", bsA.Bytes()/1024), cGo)
+		fmt.Printf("  %-22s %12s %12s %10d  <== %s\n", "bitset AND (AVX-512)", dSimd.Round(time.Microsecond), "", cSimd, simd.Name())
+	}
 }
