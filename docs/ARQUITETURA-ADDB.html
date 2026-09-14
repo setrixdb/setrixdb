@@ -1,0 +1,114 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ADDB — Arquitetura</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f8fafc; --fg: #172033; --muted: #5b6475; --line: #64748b;
+    --neutral: #e2e8f0; --input: #bfdbfe; --process: #c7d2fe;
+    --storage: #99f6e4; --external: #fde68a; --risk: #fecaca;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f172a; --fg: #e5e7eb; --muted: #a3adbd; --line: #94a3b8;
+      --neutral: #334155; --input: #1d4ed8; --process: #4338ca;
+      --storage: #0f766e; --external: #92400e; --risk: #991b1b;
+    }
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1000px; margin: 32px auto; padding: 0 20px; }
+  svg { width: 100%; height: auto; display: block; }
+  .title { font-size: 20px; font-weight: 650; fill: var(--fg); }
+  .sub { font-size: 12px; fill: var(--muted); }
+  .label { font-size: 14px; font-weight: 600; fill: var(--fg); }
+  .small { font-size: 12px; fill: var(--muted); }
+  .zm { font-size: 12px; font-weight: 700; fill: var(--muted); letter-spacing: .5px; }
+  .node { stroke: var(--line); stroke-width: 1; }
+  .neutral { fill: var(--neutral); } .input { fill: var(--input); }
+  .process { fill: var(--process); } .storage { fill: var(--storage); }
+  .external { fill: var(--external); } .risk { fill: var(--risk); }
+  .edge { stroke: var(--line); stroke-width: 1.5; fill: none; }
+  .zone { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 6 5; opacity: .8; }
+</style>
+<main>
+<svg viewBox="0 0 960 740" role="img" aria-label="Arquitetura do ADDB">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <!-- conectores -->
+  <path class="edge" d="M330,162 L330,188" marker-end="url(#arrow)"/>
+  <path class="edge" d="M330,276 L330,302" marker-end="url(#arrow)"/>
+  <path class="edge" d="M330,474 L330,500" marker-end="url(#arrow)"/>
+
+  <text class="title" x="30" y="34">ADDB — Arquitetura</text>
+  <text class="sub" x="30" y="54">motor em memória · não-relacional · não-vetorial · aritmético (Go + AVX-512) — consolidado 2026-09-14</text>
+
+  <!-- coluna principal -->
+  <rect class="zone" x="30" y="80" width="600" height="82" rx="10"/>
+  <text class="zm" x="44" y="100">1 · ENTRADA</text>
+  <rect class="node input" x="46" y="108" width="272" height="42" rx="8"/>
+  <text class="label" x="60" y="134">Dicionário de termos (~50M)</text>
+  <rect class="node input" x="330" y="108" width="286" height="42" rx="8"/>
+  <text class="label" x="344" y="134">Consultas de conjunto (A ∩ B)</text>
+
+  <rect class="zone" x="30" y="188" width="600" height="88" rx="10"/>
+  <text class="zm" x="44" y="208">2 · KEYGEN (ID ÚNICO)</text>
+  <rect class="node process" x="46" y="216" width="570" height="48" rx="8"/>
+  <text class="label" x="60" y="245">MPHF (CHD v2) — 0 colisão · 4,03 bits/chave · O(1) ~118 ns</text>
+
+  <rect class="zone" x="30" y="302" width="600" height="172" rx="10"/>
+  <text class="zm" x="44" y="322">3 · MOTOR SINGLE-NODE</text>
+  <rect class="node process" x="46" y="330" width="570" height="40" rx="8"/>
+  <text class="label" x="60" y="355">Representação: bitset denso · esparso (SparseSet/Roaring) · híbrido</text>
+  <rect class="node process" x="46" y="376" width="570" height="40" rx="8"/>
+  <text class="label" x="60" y="401">Kernels SIMD AVX-512: AND+popcount (4 µs) · extração (8,8×)</text>
+  <rect class="node process" x="46" y="422" width="570" height="40" rx="8"/>
+  <text class="label" x="60" y="447">Sharding por faixa de IDs (ShardedBitset)</text>
+
+  <rect class="zone" x="30" y="500" width="600" height="172" rx="10"/>
+  <text class="zm" x="44" y="520">4 · CLUSTER (OVER-THE-WIRE)</text>
+  <rect class="node storage" x="46" y="528" width="570" height="40" rx="8"/>
+  <text class="label" x="60" y="553">Nó de shard — TCP binário zero-copy ×N</text>
+  <rect class="node process" x="46" y="574" width="570" height="40" rx="8"/>
+  <text class="label" x="60" y="599">Coordenador — broadcast paralelo + soma |A_shard ∩ B|</text>
+  <rect class="node process" x="46" y="620" width="570" height="40" rx="8"/>
+  <text class="label" x="60" y="645">Hash ring (consistent) — topologia dinâmica · remap ~1/(N+1)</text>
+
+  <!-- coluna direita -->
+  <rect class="zone" x="650" y="80" width="280" height="200" rx="10"/>
+  <text class="zm" x="664" y="100">OPS / DR</text>
+  <rect class="node external" x="664" y="108" width="252" height="48" rx="8"/>
+  <text class="label" x="676" y="128">Fallback de modelos</text>
+  <text class="small" x="676" y="146">DeepSeek → local (Mac/nó remoto/celular)</text>
+  <rect class="node external" x="664" y="164" width="252" height="48" rx="8"/>
+  <text class="label" x="676" y="184">Watchdog + dr.sh</text>
+  <text class="small" x="676" y="202">runbook (fora-do-banda)</text>
+  <rect class="node external" x="664" y="220" width="252" height="48" rx="8"/>
+  <text class="label" x="676" y="240">Gateway: restart / cooldown</text>
+  <text class="small" x="676" y="258">auth-state + backoff</text>
+
+  <rect class="zone" x="650" y="294" width="280" height="378" rx="10"/>
+  <text class="zm" x="664" y="314">NÚMEROS MEDIDOS</text>
+  <text class="small" x="664" y="336">• Hash posicional: 78% colisão → trocado por MPHF</text>
+  <text class="small" x="664" y="356">• MPHF: 13,68 → 4,03 bits/chave (−70%)</text>
+  <text class="small" x="664" y="376">• Consulta: scan 3.150 → MPHF 70M q/s</text>
+  <text class="small" x="664" y="396">• Interseção 1M: AVX-512 4 µs (24× Roaring)</text>
+  <text class="small" x="664" y="416">• Extração SIMD: 8,8× o escalar</text>
+  <text class="small" x="664" y="436">• Sharding: compute distribui por shard</text>
+  <text class="small" x="664" y="456">• Híbrido: memória ∝ dados (1,7 MB vs 8,6 GB)</text>
+  <text class="small" x="664" y="476">• Cluster: correto em loopback e VPS↔nó remoto</text>
+  <text class="small" x="664" y="496">• Ring: add nó remapeia ~1/(N+1) (7% vs 94%)</text>
+  <text class="small" x="664" y="524">Caminhos: internal/{addb,mphf,simd,cluster}</text>
+  <text class="small" x="664" y="544">+ cmd/{mphfbench,vsbench,sparsebench,</text>
+  <text class="small" x="664" y="560">shardbench,hybridbench,ringbench,ringclusterdemo,</text>
+  <text class="small" x="664" y="576">clusterdemo,clusternode,setbench}</text>
+  <text class="small" x="664" y="604">Fonte: docs/RESULTADOS.md (12 seções)</text>
+  <text class="small" x="664" y="624">Repo: github.com/tgosoul2019/addb (privado)</text>
+  <text class="small" x="664" y="652">Próximo: consulta comprimida · plataforma de nuvem</text>
+</svg>
+</main>
