@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"net"
 
-	"github.com/tgosoul2019/addb/internal/addb"
+	"github.com/setrixdb/setrixdb/internal/addb"
 )
 
 // ShardedCluster distribui S shards (faixas de palavras) entre nós, atribuindo

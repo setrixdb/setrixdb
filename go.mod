@@ -1,4 +1,4 @@
-module github.com/tgosoul2019/addb
+module github.com/setrixdb/setrixdb
 
 go 1.22
 

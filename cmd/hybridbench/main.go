@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/RoaringBitmap/roaring/roaring64"
-	"github.com/tgosoul2019/addb/internal/addb"
-	"github.com/tgosoul2019/addb/internal/simd"
+	"github.com/setrixdb/setrixdb/internal/addb"
+	"github.com/setrixdb/setrixdb/internal/simd"
 )
 
 func main() {

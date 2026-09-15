@@ -16,8 +16,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/tgosoul2019/addb/internal/addb"
-	"github.com/tgosoul2019/addb/internal/mphf"
+	"github.com/setrixdb/setrixdb/internal/addb"
+	"github.com/setrixdb/setrixdb/internal/mphf"
 )
 
 func makeShard(n int, seed int64) []uint64 {
