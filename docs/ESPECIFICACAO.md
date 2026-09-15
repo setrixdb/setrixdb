@@ -1,6 +1,6 @@
-# ESPECIFICAÇÃO — ADDB (Arithmetic Database)
+# ESPECIFICAÇÃO — SetrixDB (Arithmetic Database)
 
-> **Prompt de Especificação Técnica: Motor de Busca e Banco de Dados Aritmético (ADDB)**
+> **Prompt de Especificação Técnica: Motor de Busca e Banco de Dados Aritmético (SetrixDB)**
 > Enviado pelo Tião. Transcrição fiel.
 
 **Objetivo:** Implementar um motor de banco de dados **em memória**, **não-relacional**,
@@ -13,7 +13,7 @@
 ## 1. Visão Geral da Arquitetura & Categoria
 
 - **Categoria:** Banco de Dados **Aritmético-Determinístico em Memória**
-  (*Deterministic Arithmetic In-Memory Database — ADDB*).
+  (*Deterministic Arithmetic In-Memory Database — SetrixDB*).
 - **Conceito Chave:** **Transmutação simbólica imediata** de termos em **inteiros
   primitivos determinísticos** (`uint64`). Elimina o processamento de strings em tempo
   de execução, realizando buscas e cruzamento de sinônimos via **operações binárias e

@@ -1,4 +1,4 @@
-// Package cluster implementa a camada over-the-wire do ADDB: nós que servem
+// Package cluster implementa a camada over-the-wire do SetrixDB: nós que servem
 // SHARDS (fatias do bitset global) por TCP e um coordenador que agrega.
 // Protocolo binário mínimo, zero-copy (sem dependências).
 //

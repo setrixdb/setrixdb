@@ -1,14 +1,14 @@
-// Command vsbench — head-to-head do ADDB contra estruturas de mercado.
+// Command vsbench — head-to-head do SetrixDB contra estruturas de mercado.
 //
 // MEMBERSHIP sobre N chaves uint64:
 //   - Go map[uint64]struct{}      (hash table)
-//   - MPHF (CHD) + 1 verificação  (ADDB)  [exato]
+//   - MPHF (CHD) + 1 verificação  (SetrixDB)  [exato]
 //   - Bloom filter (1% FP)        [aproximado]
 //
 // INTERSEÇÃO de dois conjuntos (A,B), em 2 cenários:
-//   - denso32 : IDs 0..2N (como no ADDB real: IDs do MPHF, densos/32-bit)
+//   - denso32 : IDs 0..2N (como no SetrixDB real: IDs do MPHF, densos/32-bit)
 //   - aleat64 : uint64 aleatórios (pior caso p/ bitmaps)
-//   estratégias: sorted merge (ADDB) · Roaring · hash join (map)
+//   estratégias: sorted merge (SetrixDB) · Roaring · hash join (map)
 //
 // Uso: go run ./cmd/vsbench -n 1000000
 package main
@@ -77,7 +77,7 @@ func main() {
 		bb[i] = b
 	}
 
-	fmt.Printf("== ADDB vs mercado — n=%d ==\n\n", *n)
+	fmt.Printf("== SetrixDB vs mercado — n=%d ==\n\n", *n)
 	fmt.Printf("%-24s %12s %12s %12s\n", "MEMBERSHIP", "build", "memória", "ops/s")
 	fmt.Println("------------------------------------------------------------------")
 
@@ -218,7 +218,7 @@ func runIntersect(label string, n int, rng *rand.Rand, dense bool) {
 	dH := time.Since(t)
 
 	fmt.Printf("\n[%s]  A=B=%d chaves\n", label, n)
-	fmt.Printf("  %-22s %12s %12s %10d\n", "sorted merge (ADDB)", dS.Round(time.Microsecond), "-", len(res))
+	fmt.Printf("  %-22s %12s %12s %10d\n", "sorted merge (SetrixDB)", dS.Round(time.Microsecond), "-", len(res))
 	fmt.Printf("  %-22s %12s %12s %10d\n", "Roaring", dR.Round(time.Microsecond), "-", rcard)
 	fmt.Printf("  %-22s %12s %12s %10d\n", "hash join (map)", dH.Round(time.Microsecond), "-", len(seen))
 

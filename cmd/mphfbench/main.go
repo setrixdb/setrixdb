@@ -4,7 +4,7 @@
 //	- bits/chave da estrutura
 //	- tempo de build
 //	- ns/op e ops/s de lookup (1 thread e paralelo)
-//	- comparação com o kernel de SCAN atual (ADDB) e com map[uint64]uint32
+//	- comparação com o kernel de SCAN atual (SetrixDB) e com map[uint64]uint32
 //
 // Uso:
 //
@@ -49,7 +49,7 @@ func main() {
 	flag.Parse()
 
 	keys := makeKeys(*n)
-	fmt.Printf("== ADDB MPHF (CHD v2) — n=%d lambda=%.2f epsilon=%.2f ==\n", *n, *lambda, *epsilon)
+	fmt.Printf("== SetrixDB MPHF (CHD v2) — n=%d lambda=%.2f epsilon=%.2f ==\n", *n, *lambda, *epsilon)
 
 	// --- build ---
 	t0 := time.Now()
@@ -131,7 +131,7 @@ func main() {
 	fmt.Printf("lookup %d threads: %.2f M ops/s | %.2f ns/op agregado\n",
 		workers, float64(totalOps)/d2.Seconds()/1e6, float64(d2.Nanoseconds())/float64(totalOps))
 
-	// --- comparação: scan linear (kernel atual do ADDB) ---
+	// --- comparação: scan linear (kernel atual do SetrixDB) ---
 	kq := 200
 	if *n < 1000 {
 		kq = 5

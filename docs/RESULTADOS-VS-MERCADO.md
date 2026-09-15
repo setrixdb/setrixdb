@@ -1,4 +1,4 @@
-# Head-to-head — ADDB vs soluções de mercado
+# Head-to-head — SetrixDB vs soluções de mercado
 
 > Medido nesta VPS (AMD EPYC 9J45 / Zen4, 2 vCPU) em 2026-09-14, Go 1.22.12 + gcc 11.4 (cgo, AVX-512).
 > Código: `cmd/vsbench`. Dependências de terceiros **só do benchmark** (Roaring, Bloom).
@@ -8,7 +8,7 @@
 | Estrutura | memória | lookup | exato? |
 |---|---|---|---|
 | `map[uint64]struct{}` (Go) | 22,3 B/chave | 133,3M ops/s | sim |
-| **MPHF (CHD) + 1 verificação** (ADDB) | **9,9 B/chave** | 100,4M ops/s | **sim** |
+| **MPHF (CHD) + 1 verificação** (SetrixDB) | **9,9 B/chave** | 100,4M ops/s | **sim** |
 | Bloom filter (1% FP) | 1,2 B/chave | 23,6M ops/s | não (aprox.) |
 
 **Leitura:** MPHF ≈ `map` em velocidade, com **~2,2× menos memória** e **membership exata** (+ ID).
@@ -17,13 +17,13 @@
 
 | Estratégia | denso32 (realista) | aleat64 (pior caso) |
 |---|---|---|
-| sorted merge (ADDB, escalar) | 9,2 ms | **11,3 ms** |
+| sorted merge (SetrixDB, escalar) | 9,2 ms | **11,3 ms** |
 | Roaring (mercado) | 148 µs | 523 ms |
 | hash join (map) | 91,6 ms | 94,9 ms |
 | **bitset AND (Go, escalar)** | 29 µs | — |
 | **bitset AND (AVX-512, cgo)** | **6 µs** ✅ | — |
 
-- **denso32** = IDs 0..2N (o caso do ADDB: IDs do MPHF são densos). Roaring é rápido (148 µs), mas o **bitset AND em AVX-512 faz em 6 µs → ~24× mais rápido que o Roaring** (e ~1.500× vs o merge escalar).
+- **denso32** = IDs 0..2N (o caso do SetrixDB: IDs do MPHF são densos). Roaring é rápido (148 µs), mas o **bitset AND em AVX-512 faz em 6 µs → ~24× mais rápido que o Roaring** (e ~1.500× vs o merge escalar).
 - **aleat64** = uint64 aleatórios: bitset não se aplica (universo 2⁶⁴); aí nosso merge escalar ganha da Roaring64 (~46×).
 
 ## Veredito (baseado em número)

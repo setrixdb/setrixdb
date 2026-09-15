@@ -76,14 +76,14 @@ Escolhemos três apostas que, juntas, ninguém estava fazendo:
 - **Infra e redes (a nuvem):** tabelas de rotas, VPCs e políticas L4 — exatamente o tipo de dado que
   sustenta plataformas como a **plataforma de nuvem**, onde faremos os testes de escala.
 - **IA na borda (edge):** *feature stores*, gating e recuperação **exata** de candidatos para modelos —
-  o complemento honesto de um mundo obcecado por vetores.
+  o par exato dos bancos vetoriais: onde "parecido" não basta, a resposta precisa ser *certa*.
 - **Observabilidade e Telecom:** séries por ID, correlação de telemetria, matching de tráfego.
 
 ## 6. O convite
 
-O SetrixDB nasce **open source (Apache-2.0)** — a mesma escolha que consagrou Kubernetes, ClickHouse e
-TiDB: **adoção primeiro, império depois.** O código é público, os benchmarks são reproduzíveis, e a
-estrada passa por **acelerar em NPU, protocolo entre nós e escala real em nuvem**.
+O SetrixDB nasce **open source (Apache-2.0)** — acreditamos que **adoção vem antes de império**: o
+código é aberto, os benchmarks são reproduzíveis, e a estrada passa por **acelerar em NPU, protocolo
+entre nós e escala real em nuvem**.
 
 Se você acredita que a próxima onda da computação não é sobre *armazenar mais*, mas sobre **decidir
 mais rápido** — o SetrixDB foi feito para você.

@@ -1,4 +1,4 @@
-# Estrutura de código proposta — ADDB
+# Estrutura de código proposta — SetrixDB
 
 > Antes de deployar, separar as camadas e **deixar os backends plugáveis** (scalar → SIMD
 > → NPU). O POC atual está tudo em `internal/addb`; abaixo o alvo.

@@ -17,7 +17,7 @@ import (
 func main() {
 	const keys = 4_000_000
 
-	fmt.Printf("== ADDB híbrido — universo 2^36, %d chaves, kernel %s ==\n\n", keys, simd.Name())
+	fmt.Printf("== SetrixDB híbrido — universo 2^36, %d chaves, kernel %s ==\n\n", keys, simd.Name())
 
 	// ---- 1. Memória por representação (universo 2^36) ----
 	fmt.Println("-- 1) Memória (universo 2^36 = 68,7 bi IDs) --")

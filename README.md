@@ -44,7 +44,7 @@ memória contíguo** (`[]uint64`) que pode ser entregue ao hardware por
 
 ```
         ┌──────────────────────────────────────────────────────────────┐
-        │                          ADDB Engine                          │
+        │                          SetrixDB Engine                          │
         │                                                              │
    batch│  ┌──────────────┐   ┌──────────────┐        ┌──────────────┐  │
   ──────┼─▶│  Partition   │──▶│ Parallel     │───────▶│  Merge /     │  │

@@ -1,4 +1,4 @@
-// Command clusterdemo — demonstra o ADDB distribuído e COMPARA os dois modos de
+// Command clusterdemo — demonstra o SetrixDB distribuído e COMPARA os dois modos de
 // interseção:
 //
 //	ARMazenado: |A ∩ B| com A,B já armazenados → cada nó faz o AND local; a rede
@@ -40,7 +40,7 @@ func main() {
 	flag.Parse()
 
 	W := *universe / 64
-	fmt.Printf("== ADDB distribuído — armazenado vs ad-hoc · universo 2^%d, %d palavras ==\n\n", log2(*universe), W)
+	fmt.Printf("== SetrixDB distribuído — armazenado vs ad-hoc · universo 2^%d, %d palavras ==\n\n", log2(*universe), W)
 
 	var addrs []string
 	var locals []*cluster.Node

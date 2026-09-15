@@ -7,7 +7,7 @@ import (
 
 // ShardedBitset particiona o espaço de IDs (uint64) em `NumShards` ranges
 // CONTÍGUOS, cada um representado como um Bitset denso. É a unidade de
-// escala horizontal do ADDB: membership roteia O(1) para o shard certo;
+// escala horizontal do SetrixDB: membership roteia O(1) para o shard certo;
 // a interseção é broadcast por shard (embarrassingly parallel).
 //
 // Dois ShardedBitset só são compatíveis para interseção se tiverem o MESMO

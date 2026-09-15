@@ -1,4 +1,4 @@
-# ADDB — Apresentação do Produto
+# SetrixDB — Apresentação do Produto
 ### O banco de dados aritmético para a era da IA na borda
 
 > Documento de *pitch*. Números reais medidos em 14/09/2026 (VPS 2 vCPU Zen4/AVX-512, Go 1.22 + cgo).
@@ -23,7 +23,7 @@ ponteiros, I/O de disco e estruturas que não vetorizam.
 
 ---
 
-## 2. O que é o ADDB
+## 2. O que é o SetrixDB
 
 Um motor de banco de dados **em memória, não-relacional, não-vetorial e puramente
 aritmético**.
@@ -40,19 +40,19 @@ Base técnica: **MPHF → bitset/shard → kernel vetorizado → cluster por sha
 
 ---
 
-## 3. O que o ADDB NÃO é (a pergunta que sempre vem)
+## 3. O que o SetrixDB NÃO é (a pergunta que sempre vem)
 
-| Categoria | Como funciona | ADDB? |
+| Categoria | Como funciona | SetrixDB? |
 |---|---|---|
-| **Relacional** (Postgres, MySQL) | tabelas, JOINs, SQL, disco | ❌ não é |
-| **Colunar** (ClickHouse, DuckDB) | analytics, compressão por coluna, disco | ❌ não é |
-| **NoSQL chave-valor** (Redis, Mongo, Dynamo) | registros/documentos por chave | ❌ não é |
-| **Vetorial** (Pinecone, Milvus, pgvector) | similaridade **aproximada** por embeddings | ❌ não é |
-| **Grafo** (Neo4j) | vértices/arestas, travessia | ❌ não é |
-| **Bitmap DB clássico** (Roaring, EWAH) | conjuntos comprimidos, CPU escalar | ⚠️ primo — **nós somos o próximo salto** |
-| **ADDB** | **álgebra exata de conjuntos de IDs em RAM, vetorizada** | ✅ **é isso** |
+| **Relacional** | tabelas, JOINs, SQL, disco | ❌ não é |
+| **Colunar** | analytics, compressão por coluna, disco | ❌ não é |
+| **NoSQL chave-valor** | registros/documentos por chave | ❌ não é |
+| **Vetorial** | similaridade **aproximada** por embeddings | ❌ não é |
+| **Grafo** | vértices/arestas, travessia | ❌ não é |
+| **Bitmap comprimido clássico** | conjuntos comprimidos, CPU escalar | ⚠️ primo — **nós somos o próximo salto** |
+| **SetrixDB** | **álgebra exata de conjuntos de IDs em RAM, vetorizada** | ✅ **é isso** |
 
-> **Em uma frase:** o ADDB não guarda *documentos*, *linhas* nem *vetores* — ele guarda
+> **Em uma frase:** o SetrixDB não guarda *documentos*, *linhas* nem *vetores* — ele guarda
 > **conjuntos**. E responde a perguntas sobre eles com **aritmética vetorizada**, exata e
 > em microssegundos, mesmo em hardware pequeno.
 
@@ -81,7 +81,7 @@ Base técnica: **MPHF → bitset/shard → kernel vetorizado → cluster por sha
 
 ## 5. Diferenciais — números reais (não promessa)
 
-| Frente | ADDB | Estado da arte | Ganho |
+| Frente | SetrixDB | Estado da arte | Ganho |
 |---|---|---|---|
 | **ID único** (MPHF CHD v2, n=50M) | 4,03 bits/chave · 0 colisão · 118 ns | — | ~piso teórico (1,44) na fronteira prática |
 | **Interseção densa** (1M×1M) | **6 µs** (AVX-512) | Roaring 148 µs | **~24×** |
@@ -138,5 +138,5 @@ Base técnica: **MPHF → bitset/shard → kernel vetorizado → cluster por sha
 4. **Escala sem reescrever** — sharding + ring + conjuntos armazenados.
 5. **Compatível com o mundo real** — pode coexistir com qualquer stack; é um *engine* de conjuntos, não uma religião.
 
-> **Pitch em uma linha:** *"O ADDB responde interseções e membership sobre bilhões de IDs em
+> **Pitch em uma linha:** *"O SetrixDB responde interseções e membership sobre bilhões de IDs em
 > microssegundos, exato e em qualquer hardware — o banco que a era da IA na borda estava esperando."*
