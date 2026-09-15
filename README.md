@@ -255,11 +255,34 @@ curl -X POST localhost:8080/intersect   -d '{"sets":["nike","estoque"]}'
 Rotas: `/health`, `/sets`, `PUT|GET|DELETE /sets/{name}`, `GET /sets/{name}/has?id=`, `POST /intersect`,
 `POST /union`. Aceita JSON (`{"ids":[...]}`) ou texto puro (um ID por linha).
 
-## 12. Contribuindo
+## 12. C ABI (FFI) — embutir em C/C++/Rust/Python
+
+```bash
+CGO_ENABLED=1 go build -buildmode=c-shared -o libsetrixdb.so ./cmd/setrixdb-capi
+# gera libsetrixdb.so + libsetrixdb.h
+```
+
+Interface (handle = inteiro; arrays devolvidos via `malloc`, libere com `sx_free`):
+
+```c
+char*      sx_version();
+long long  sx_set_new();
+int        sx_set_add_many(long long h, uint64_t* ids, long long n);
+long long  sx_set_len(long long h);
+int        sx_set_has(long long h, uint64_t id);
+long long  sx_intersect_many(long long a, long long b);
+int        sx_intersect_ids(long long a, long long b, uint64_t** out, long long* n);
+int        sx_set_free(long long h);
+void       sx_free(void* p);
+```
+
+Exemplos prontos em [`examples/capi/`](examples/capi) — testados de **C** (gcc) e **Python** (ctypes).
+
+## 13. Contribuindo
 
 Veja [`CONTRIBUTING.md`](CONTRIBUTING.md) e [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 
-## 13. Licença
+## 14. Licença
 
 Licenciado sob a **Apache License 2.0** — veja [`LICENSE`](LICENSE) e [`NOTICE`](NOTICE).
 Copyright 2026 Thiago Silva.
