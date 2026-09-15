@@ -18,7 +18,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/binary"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -28,10 +27,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/setrixdb/setrixdb"
 	"github.com/setrixdb/setrixdb/internal/addb"
 )
 
-const magic = "SXSET1"
+const version = "0.1.0"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -128,49 +128,15 @@ func normalize(ids []uint64) []uint64 {
 }
 
 func writeSet(path string, ids []uint64) error {
-	ids = normalize(ids)
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	bw := bufio.NewWriter(f)
-	bw.WriteString(magic)
-	bw.WriteByte('S')
-	var buf [8]byte
-	binary.LittleEndian.PutUint64(buf[:], uint64(len(ids)))
-	bw.Write(buf[:])
-	for _, id := range ids {
-		binary.LittleEndian.PutUint64(buf[:], id)
-		bw.Write(buf[:])
-	}
-	return bw.Flush()
+	return setrixdb.NewSet(ids...).WriteFile(path)
 }
 
 func readSet(path string) ([]uint64, error) {
-	data, err := os.ReadFile(path)
+	s, err := setrixdb.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	if len(data) < 15 || string(data[:6]) != magic {
-		return nil, fmt.Errorf("%s: não é um arquivo .sxset válido", path)
-	}
-	typ := data[6]
-	n := binary.LittleEndian.Uint64(data[7:15])
-	body := data[15:]
-	switch typ {
-	case 'S':
-		if uint64(len(body)) < n*8 {
-			return nil, fmt.Errorf("%s: arquivo truncado", path)
-		}
-		ids := make([]uint64, n)
-		for i := uint64(0); i < n; i++ {
-			ids[i] = binary.LittleEndian.Uint64(body[i*8 : i*8+8])
-		}
-		return ids, nil
-	default:
-		return nil, fmt.Errorf("%s: tipo de conjunto desconhecido (%q)", path, typ)
-	}
+	return s.IDs(), nil
 }
 
 func humanBytes(b int64) string {

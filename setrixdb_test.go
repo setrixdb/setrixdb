@@ -1,6 +1,10 @@
 package setrixdb
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestSetBasics(t *testing.T) {
 	s := NewSet(5, 1, 3, 3, 1)
@@ -32,6 +36,34 @@ func TestUnion(t *testing.T) {
 	u := Union(NewSet(1, 2), NewSet(2, 3), NewSet(10))
 	if u.Len() != 4 {
 		t.Fatalf("Union = %v, esperado 4 elementos", u.IDs())
+	}
+}
+
+func TestWriteReadFile(t *testing.T) {
+	orig := NewSet(9, 3, 7, 1)
+	path := filepath.Join(t.TempDir(), "s.sxset")
+	if err := orig.WriteFile(path); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Len() != orig.Len() {
+		t.Fatalf("Len = %d, esperado %d", got.Len(), orig.Len())
+	}
+	if !got.Has(7) || got.Has(8) {
+		t.Fatal("conteúdo divergente após round-trip")
+	}
+}
+
+func TestReadFileInvalido(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "x.sxset")
+	if err := os.WriteFile(path, []byte("nao-e-sxset"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadFile(path); err == nil {
+		t.Fatal("arquivo inválido deveria dar erro")
 	}
 }
 
