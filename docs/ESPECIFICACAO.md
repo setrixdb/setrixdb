@@ -1,7 +1,7 @@
 # ESPECIFICAÇÃO — SetrixDB (Arithmetic Database)
 
 > **Prompt de Especificação Técnica: Motor de Busca e Banco de Dados Aritmético (SetrixDB)**
-> Enviado pelo Tião. Transcrição fiel.
+> Documento de origem do projeto. Transcrição fiel.
 
 **Objetivo:** Implementar um motor de banco de dados **em memória**, **não-relacional**,
 **não-vetorial** e **puramente aritmético** em **Go (Golang)**, projetado para
@@ -141,7 +141,7 @@ func main() {
   de **RAG**, **indexação de memória de longo prazo** para **LLMs de borda (Edge AI)**
   e **deduplicação de tokens** com **consumo energético mínimo**.
 
-### Próximos passos sugeridos pelo Tião
+### Próximos passos sugeridos
 
 - [x] Exportar a especificação para um arquivo Markdown/README
 - [x] Criar o teste de performance em Go para medir **ops/segundo**

@@ -130,13 +130,13 @@ Varredura λ×ε (n=1M, bits/chave):
 
 ---
 
-## 9. Geração por modelo local (Mac M5, qwen-code:9b)
+## 9. Geração de código por modelo local
 
 Teste real: função `ExtractSet` (`internal/addb/extract.go`).
 
 - Lógica **correta** ✅; **1 erro de tipo** (`uint64(i*64)+j`) → não compilava; corrigido 1 linha.
 - `go test` PASS · `go vet` OK.
-- ⚠️ Latência **~235 s** (provável Ollama sem Metal/GPU — a investigar).
+- ⚠️ Latência **~235 s** (provável falta de aceleração de GPU — a investigar).
 
 ---
 
