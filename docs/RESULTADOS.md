@@ -205,3 +205,27 @@ Em link lento (link ~2 MB/s) o ganho explode — é o modo escalável do cluster
 **Veredito:** entrar/sair um nó remapeia só ~1/(N+1) dos IDs (vs ~tudo no módulo ingênuo) — a base pra **rebalancear o cluster sem re-shuffle total**. É a peça de topologia que casa com o plano de clusterizar o banco em instâncias (cluster real).
 
 **Integração ring+cluster** (`internal/cluster/sharded.go` + `cmd/ringclusterdemo`): cada shard é atribuído a um nó **pelo anel**. Verificado: resultado **idêntico ao local** (12 shards / 3 nós) e, entrando +1 nó, **2/12 shards mudam de dono** (17%, ideal 25%) — no módulo mudariam ~todos.
+
+---
+
+## 13. Cluster Kubernetes (3 nós) — validação em nuvem
+
+`deploy/k8s/` + `cmd/clusternode` / `cmd/clusterdemo`. 3 nós de shard como pods (1 por máquina,
+anti-affinity), coordenador em nó separado. Kubernetes v1.36, nós de 4 vCPU / 8 GB. Comunicação
+**TCP :19100 em estrela** (coordenador → nó; os nós não falam entre si). Data: 15/09/2026.
+
+| universo | |A∩B| local | distribuído | lat. armazenado | lat. ad-hoc | ganho | load |
+|---|---|---|---|---|---|---|---|
+| 2²⁴ (262k palavras) | 77.668 | 77.668 ✅ | 1,2 ms | 21,2 ms | 18× | 82 ms |
+| 2²⁶ (1,05M palavras) | 311.376 | 311.376 ✅ | 3,2 ms | 69,1 ms | 22× | 246 ms |
+| 2²⁸ (4,2M palavras) | 1.246.437 | 1.246.437 ✅ | 10,4 ms | 258,5 ms | 25× | 1,28 s |
+
+Correção **idêntica ao local em todos os modos e escalas**; o modo **armazenado** é **18–25× mais
+rápido** que o ad-hoc — e o ganho **cresce com a escala**.
+
+**Limite (coordenador com 1 GiB):** o teste **passa em 2²⁸** e é **OOMKilled em 2²⁹/2³⁰** — a
+**corretude resiste até 2³⁰** (4.982.242 = local). O que quebra primeiro é a **memória do
+coordenador**, que detém o conjunto **global** para fatiar (~10·W palavras + `GOGC=100` ≈ 2× do
+*live*). Melhoria prevista: fatiar por *seed*/streaming (ver `docs/VISAO-ESCALABILIDADE.md`).
+
+Reproduzível: `deploy/k8s/README.md`.
