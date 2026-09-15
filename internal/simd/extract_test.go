@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 package simd
 
 import (
@@ -17,11 +20,16 @@ func TestExtractSetMatchesScalar(t *testing.T) {
 	got := ExtractSet(words)
 	want := addb.ExtractSet(words)
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("simd.ExtractSet diverge do escalar:\n got=%v\n want=%v", got[:min(20,len(got))], want[:min(20,len(want))])
+		t.Fatalf("simd.ExtractSet diverge do escalar:\n got=%v\n want=%v", got[:min(20, len(got))], want[:min(20, len(want))])
 	}
 }
 
-func min(a, b int) int { if a < b { return a }; return b }
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
 
 // caso denso: 1M bits setados em 16K palavras
 func denseWords() []uint64 {

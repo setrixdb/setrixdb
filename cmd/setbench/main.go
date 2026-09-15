@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Command setbench compara as estratégias de CONSULTA do SetrixDB sobre o mesmo shard:
 //
 //  1. scan      — kernel atual (varredura O(n) por consulta)

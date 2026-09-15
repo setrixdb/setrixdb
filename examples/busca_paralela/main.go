@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Command busca_paralela demonstra o SetrixDB ponta a ponta:
 //
 //	termo (string UTF-8) -> ID uint64 determinístico -> shard em RAM -> busca paralela.

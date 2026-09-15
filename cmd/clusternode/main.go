@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Command clusternode — sobe um nó de shard do SetrixDB que escuta por TCP.
 // O coordenador (clusterdemo -nodes ...) envia o shard (opLoad) e as consultas.
 //

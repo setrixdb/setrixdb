@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 #include <immintrin.h>
 #include <stdint.h>
 

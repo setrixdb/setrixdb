@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Package mphf implementa um Minimal Perfect Hash Function (MPHF) no estilo
 // CHD (Czech–Havas–Majewski) escrito do zero — sem dependência de terceiros.
 //

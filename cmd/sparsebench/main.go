@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Command sparsebench — testa o cenário ESPARSO (IDs raros em universo grande),
 // onde o bitset denso teoricamente perde pro Roaring (que comprime).
 //

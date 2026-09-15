@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Command shardbench — mede a escala horizontal do SetrixDB: particiona o espaço
 // de IDs em N shards (ranges contíguos, cada um um bitset denso) e compara a
 // interseção serial vs. paralela.

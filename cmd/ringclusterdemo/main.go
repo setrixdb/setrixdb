@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Command ringclusterdemo — integra o consistent hash ring ao cluster: cada
 // shard é atribuído a um nó pelo anel (topologia dinâmica). Mede a correção e o
 // remapeamento de shards quando um nó entra.

@@ -1,5 +1,8 @@
 //go:build cgo && amd64
 
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Package simd expõe kernels vetorizados para o SetrixDB.
 //
 // O kernel de interseção de bitsets é HÍBRIDO: o arquivo C é compilado portável

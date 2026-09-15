@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Command ringbench — mede a propriedade central do consistent hash ring:
 // entrar/sair um nó remapeia apenas ~1/(N+1) das chaves (vs ~N/(N+1) do módulo
 // ingênuo), e o balanceamento fica próximo do ideal.

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 package addb
 
 // SynonymEntry descreve um termo e seus sinônimos, já resolvidos em IDs uint64.
