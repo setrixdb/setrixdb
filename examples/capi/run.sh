@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 Thiago Silva
+# Copyright (c) 2026 SetrixDB
 # SPDX-License-Identifier: Apache-2.0
 #
 # Build da C ABI (c-shared) e teste de ponta a ponta em C e Python.
