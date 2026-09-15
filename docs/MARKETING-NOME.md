@@ -1,6 +1,10 @@
 # ADDB — Marketing & Nome Comercial
 ### Do nome técnico (`ADDB`) ao produto de mercado
 
+> **✅ DECISÃO (15/09/2026 — Tião):** marca = **Setrix**, produto = **SetrixDB** (um "x").
+> Domínios: **`setrixdb.com`** + **`setrixdb.io`**. Org GitHub: **`setrixdb`**.
+> Licença: a definir (**sugestão: Apache-2.0**). INPI: "setrix"/"setrixdb" → **0 registros**.
+
 > "ADDB / Arithmetic Database" é o **nome de projeto** (interno). Para vender a ideia,
 > precisamos de uma **marca**, um **posicionamento** e uma **mensagem**.
 
@@ -71,6 +75,13 @@
 | **Axion** | partícula + axioma; moderno, tech | ocupado | ocupado |
 | **Setrix** | *set* + sufixo tech; curto | ocupado | livre aparente |
 | ~~Addb~~ | interno; sem apelo de marca | — | aparentemente livre |
+
+### ✅ Escolhido: SetrixDB
+- **Marca:** Setrix · **Produto/engine:** SetrixDB (relação *Postgres → PostgreSQL*).
+- **Domínios:** `setrixdb.com` (oficial) + `setrixdb.io` (dev) — ambos **livres**.
+- **Org GitHub:** `setrixdb` (livre) — projeto nasce **open source**.
+- **Tagline:** *"SetrixDB — the arithmetic database."*
+- **Licença:** pendente de decisão (ver recomendação Apache-2.0 abaixo).
 
 **Observação honesta:** os `.com`/`.io` da maioria já estão ocupados (verifiquei DNS).
 Caminhos: variantes (`arithmo.dev`, `numera.db`, `getalgora.com`), sufixos **`.ai` `.dev` `.db`**,
