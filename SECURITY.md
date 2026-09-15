@@ -10,6 +10,7 @@ Enquanto o projeto estiver em **alpha / pre-release**, apenas a `main` é suport
 **Não abra uma issue pública.** Reporte de forma **privada**, por um destes canais:
 
 - **GitHub Security Advisories** (preferido): aba **Security → Report a vulnerability** neste repositório.
+- **E-mail do projeto:** contato@setrixdb.com
 - Inclua, se possível: passos de reprodução, versão afetada, impacto esperado e uma prova de conceito.
 
 Nos comprometemos a:
