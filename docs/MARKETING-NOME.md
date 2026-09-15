@@ -3,7 +3,7 @@
 
 > **✅ DECISÃO (15/09/2026 — Tião):** marca = **Setrix**, produto = **SetrixDB** (um "x").
 > Domínios: **`setrixdb.com`** + **`setrixdb.io`**. Org GitHub: **`setrixdb`**.
-> Licença: a definir (**sugestão: Apache-2.0**). INPI: "setrix"/"setrixdb" → **0 registros**.
+> Licença: **Apache-2.0** (decidida em 15/09/2026). INPI: "setrix"/"setrixdb" → **0 registros**.
 
 > "ADDB / Arithmetic Database" é o **nome de projeto** (interno). Para vender a ideia,
 > precisamos de uma **marca**, um **posicionamento** e uma **mensagem**.
@@ -81,7 +81,7 @@
 - **Domínios:** `setrixdb.com` (oficial) + `setrixdb.io` (dev) — ambos **livres**.
 - **Org GitHub:** `setrixdb` (livre) — projeto nasce **open source**.
 - **Tagline:** *"SetrixDB — the arithmetic database."*
-- **Licença:** pendente de decisão (ver recomendação Apache-2.0 abaixo).
+- **Licença:** **Apache-2.0** ✅ (open source, permissiva — mesmo caminho de ClickHouse/TiDB/Kubernetes).
 
 **Observação honesta:** os `.com`/`.io` da maioria já estão ocupados (verifiquei DNS).
 Caminhos: variantes (`arithmo.dev`, `numera.db`, `getalgora.com`), sufixos **`.ai` `.dev` `.db`**,
