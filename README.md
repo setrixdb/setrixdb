@@ -1,6 +1,6 @@
-# SetrixDB — Arithmetic Database
+# SetrixDB — the arithmetic set engine
 
-_(antigo **ADDB** — Arithmetic Database)_
+_(antes **ADDB** — Arithmetic Database)_
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.22-00ADD8.svg)](https://go.dev)
