@@ -61,12 +61,19 @@ func ReadFile(path string) (*Set, error) {
 	}
 	n := binary.LittleEndian.Uint64(data[7:15])
 	body := data[15:]
-	if uint64(len(body)) < n*8 {
+	if n > uint64(len(body))/8 {
 		return nil, fmt.Errorf("%s: arquivo truncado", path)
 	}
 	ids := make([]uint64, n)
 	for i := uint64(0); i < n; i++ {
 		ids[i] = binary.LittleEndian.Uint64(body[i*8 : i*8+8])
+	}
+	// O formato exige IDs estritamente crescentes (WriteFile garante). Validamos para
+	// não aceitar um arquivo corrompido e devolver respostas erradas silenciosamente.
+	for i := 1; i < len(ids); i++ {
+		if ids[i-1] >= ids[i] {
+			return nil, fmt.Errorf("%s: .sxset inválido (IDs não estão em ordem crescente)", path)
+		}
 	}
 	return &Set{ids: ids, sorted: true}, nil
 }
