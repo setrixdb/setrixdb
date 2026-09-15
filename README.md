@@ -13,7 +13,7 @@ _(antigo **ADDB** — Arithmetic Database)_
 > **Não é "mais um banco":** é um **engine** que **coexiste** com o seu banco atual — ele guarda
 > **conjuntos de IDs** (não payloads) e responde presença e interseção em microssegundos.
 
-Projeto **pessoal** do Tião, **open source sob Apache-2.0**.
+Projeto **open source (Apache-2.0)**.
 
 - **Apresentação / pitch:** [`docs/APRESENTACAO-PRODUTO.md`](docs/APRESENTACAO-PRODUTO.md)
 - **Todos os resultados medidos:** [`docs/RESULTADOS.md`](docs/RESULTADOS.md)
@@ -289,8 +289,4 @@ Veja [`CONTRIBUTING.md`](CONTRIBUTING.md) e [`CODE_OF_CONDUCT.md`](CODE_OF_CONDU
 ## 14. Licença
 
 Licenciado sob a **Apache License 2.0** — veja [`LICENSE`](LICENSE) e [`NOTICE`](NOTICE).
-Copyright 2026 Thiago Silva.
-
----
-
-_Especificação de trabalho do Tião · documentação mantida por Equipe ✨._
+Copyright 2026 SetrixDB.
