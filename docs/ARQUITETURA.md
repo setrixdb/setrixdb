@@ -1,103 +1,67 @@
 # Arquitetura — SetrixDB
 
-Detalhamento técnico do motor de conjuntos (Arithmetic Set Engine) conforme a especificação de origem do projeto.
+Motor de conjuntos **aritmético** e **embarcável**: guarda **conjuntos de IDs (`uint64`)** e
+responde operações de conjunto (interseção, união, diferença) com **exatidão** — **coexistindo**
+com o banco atual (não o substitui). Não é um banco de propósito geral.
 
-## 1. Visão geral
+**Pipeline:** `termo/texto → keygen (ID) → conjunto → operação (kernel) → IDs`.
 
-SetrixDB abandona os pilares tradicionais de um banco (relações, índices B-tree,
-hashing de strings em runtime, vetores) e aposta em **uma única primitiva**:
-a **aritmética determinística sobre inteiros de 64 bits**.
+## 1. Keygen — MPHF (CHD v2)
 
-- **Unidade atômica:** `uint64` (o dado *é* o número).
-- **Transmutação simbólica:** qualquer termo UTF-8 vira um ID `uint64`
-  **determinístico**, em tempo `O(L)` — sem processar strings na busca.
-- **Armazenamento:** *shards* contíguos (`[]uint64`) — cache-friendly e DMA-friendly.
-- **Busca:** casamento por igualdade, *branchless*, vetorizável.
-- **Escala:** paralelismo de dados (goroutines) + distribuição por hash ring.
+Cada termo UTF-8 vira um ID `uint64` **determinístico** por **Minimal Perfect Hash (CHD v2)**:
+**0 colisões**, ~**4,03 bits/chave**, lookup `O(1)` (~118 ns). Código: `internal/mphf`.
 
-## 2. Dimensionamento (footprint ~1 GB de RAM)
+> Nota histórica: o POC usava um *hash posicional* modular; a taxa de colisão medida foi alta
+> (78%) e ele foi **substituído pelo MPHF**. Ver `docs/RESULTADOS.md`.
 
-| Componente | Escala | Tamanho |
-|---|---|---|
-| Dicionário Global UTF-8 | ~50 mi de termos | ~400 MB (IDs `uint64` contínuos) |
-| Base de Sinônimos | ~50 mi de conexões | ~460 MB (*flat arrays* + offsets `uint32`) |
-| **Total** | — | **~1,0 GB** |
+## 2. Representações de conjunto
 
-## 3. Mapeamento posicional determinístico
+`internal/addb`:
 
-`ComputeDeterministicID` (`internal/addb/hash.go`):
+- **Bitset denso** — `universo/8` bytes; interseção pelo kernel SIMD (mais rápido).
+- **SparseSet** — lista ordenada; ideal quando o universo é esparso.
+- **Híbrido** — faixas quentes em bitset + cauda esparsa → memória ∝ **dados**, não ∝ universo.
+- **ShardedBitset** — fatia por faixa de ID (paraleliza o *compute*).
 
-```
-ID = Σ_{i=0}^{L-1} ( UTF8(c_i) + i + 1 ) · B^i   (mod 2^64),  B = 31
-```
+## 3. Kernels SIMD
 
-- **Base multiplicativa** `B = 31` e posição `i` entram na conta ⇒ **anagramas
-  diferem** (`"casa"` ≠ `"saca"`).
-- Somatório em `uint64` ⇒ *wrap-around* mod 2^64, sem custo.
-- Custo `O(L)`, puramente aritmético (sem alocação, sem mapa de strings).
+`internal/simd`: kernels em C (cgo) com **AVX-512** (`vpandq` + `vpopcntq`) e **dispatch em
+runtime** (`__builtin_cpu_supports`), com **fallback escalar portável** (cobre CPUs sem AVX-512;
+compatível com AVX10.2). Inclui AND+popcount e **extração vetorizada** dos elementos.
 
-> Nota: em Go, `range` sobre `string` itera por *rune*, mas o índice `i` é o
-> deslocamento em **bytes**. A fórmula usa esse índice posicional.
+## 4. Operações
 
-## 4. Base de sinônimos em flat arrays
+`internal/addb/setops.go`: `Contains` / `Intersect` / `Union` / `Difference`, com laços
+**branchless** (sem `if` no caminho quente) — amigáveis ao auto-vectorizer.
 
-`FlatSynonymStorage` (`internal/addb/synonyms.go`) — **sem maps nativos**:
+## 5. Escala
 
-```
-SynonymIDs: [ s0 s1 s2 | s3 s4 | … ]   // todos os sinônimos concatenados
-Offsets:    [ 0        3      …    ]   // início da fatia de cada termo
-Lengths:    [ 3        2      …    ]   // quantidade de sinônimos
-Terms:      [ t0       t1     …    ]   // termo dono da fatia
-```
+- **Vertical:** paralelismo por shard (goroutines limitadas a `GOMAXPROCS`).
+- **Horizontal (cluster):** `internal/cluster` — nós servem **shards** por **TCP binário**; o
+  coordenador faz broadcast paralelo e soma o resultado. Dois modos:
+  - **armazenado** — só os **nomes** dos conjuntos trafegam (zero dados por consulta);
+  - **ad-hoc** — transmite a fatia da consulta a cada consulta.
+- **Topologia dinâmica:** *consistent hash ring* (`internal/addb/ring.go`) — entrar/sair um nó
+  remapeia ~`1/(N+1)` dos IDs.
 
-A fatia de um termo `k` é `SynonymIDs[Offsets[k] : Offsets[k]+Lengths[k]]`.
-Busca do termo por varredura em `Terms` (em produção: ordenar + busca binária).
+## 6. Interfaces
 
-## 5. Kernel de busca
+- **Pacote Go** (raiz `github.com/setrixdb/setrixdb`): `Set` / `NewSet` / `Intersect` / `Union` /
+  `Filter` / `Index`.
+- **CLI** `cmd/setrixdb` (`version`, `build`, `info`, `has`, `intersect`, `bench`).
+- **Servidor HTTP** `cmd/setrixdb-server` (`/sets`, `/intersect`, `/union`, …) com persistência
+  de conjuntos (`.sxset`).
+- **C ABI** `cmd/setrixdb-capi` (`libsetrixdb.so` + `libsetrixdb.h`).
 
-```go
-func Contains(shard []uint64, q uint64) bool {
-	var found uint64
-	for _, v := range shard {
-		x := v ^ q
-		eq := 1 - ((x | (^x + 1)) >> 63) // 1 se v==q, 0 caso contrário
-		found |= eq
-	}
-	return found == 1
-}
-```
+## 7. Limites e riscos
 
-Sem `if` no laço quente ⇒ sem *branch misprediction*; forma amigável ao
-*auto-vectorizer* (AVX-512: `vpcmpeqq` + `kortest`).
+- Igualdade **pura**: não responde a *range queries* nem a similaridade — é um **pré-filtro
+  exato**, não um banco de propósito geral.
+- O bitset denso custa `universo/8` bytes; o **híbrido/esparso** resolve quando o universo é grande.
+- O keygen precisa ser **determinístico e estável** entre nós (mesmo mapeamento ID ↔ termo).
 
-## 6. Paralelismo
+## 8. Números
 
-`ParallelSearchEngine(queryIDs, databaseShard)` recebe o termo principal **e os
-sinônimos já resolvidos em inteiros** e dispara a busca concorrente.
-
-A especificação original usa **uma goroutine por ID** com `chan uint64`. A
-implementação neste repo **endurece** isso para um **pool de workers** limitado a
-`GOMAXPROCS(0)` — mesmo resultado (ordem preservada, sem duplicatas), porém sem
-risco de explosão de goroutines em lotes grandes. Ver `internal/addb/search.go`.
-
-## 7. Zero-copy / DMA para NPU
-
-`UnsafePtr(shard)` devolve o endereço da *backing array* para drivers C/C++.
-Combinado com *pinning*, o mesmo buffer vai e volta da NPU sem cópia.
-
-> ⚠️ O shard precisa permanecer vivo e não realocado durante a transferência.
-
-## 8. Consistent Hash Ring
-
-`ring.go` roteia IDs `uint64` entre nós sem re-hash total (`AddNode`/`RemoveNode`
-movem apenas os segmentos afetados; `Route(id)` devolve o nó dono). Pacotes
-binários compactos, enviáveis por **UDP/gRPC**.
-
-## 9. Limites e riscos
-
-- Igualdade **pura** não responde a *range queries* nem a similaridade — é um
-  **pré-filtro**, não um banco de propósito geral.
-- Varredura linear só compensa com shards em RAM e/ou com SIMD.
-- Risco de **colisão de hash**: o mapa posicional é determinístico, mas não é
-  *injetivo* por construção (mod 2^64). Em produção, validar a taxa de colisão no
-  dicionário real (50 mi de termos) e, se preciso, acrescentar um *salt*/chave.
+Ver `docs/RESULTADOS.md` (13 seções). Resumo: MPHF ~4 bits/chave · interseção densa AVX-512
+~4 µs (24× Roaring) · híbrido 1,7 MB vs 8,6 GB · cluster correto com **18–25×** no modo
+armazenado e ponto de quebra documentado.
