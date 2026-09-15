@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Thiago Silva
+// Copyright (c) 2026 SetrixDB
 // SPDX-License-Identifier: Apache-2.0
 
 // Command hybridbench — demonstra a "parede de memória" do bitset denso e onde

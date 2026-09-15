@@ -1,6 +1,6 @@
 //go:build cgo && amd64
 
-// Copyright (c) 2026 Thiago Silva
+// Copyright (c) 2026 SetrixDB
 // SPDX-License-Identifier: Apache-2.0
 
 // Package simd expõe kernels vetorizados para o SetrixDB.

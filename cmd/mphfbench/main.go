@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Thiago Silva
+// Copyright (c) 2026 SetrixDB
 // SPDX-License-Identifier: Apache-2.0
 
 // Command mphfbench constrói um MPHF (CHD) sobre N chaves e mede, com números:
