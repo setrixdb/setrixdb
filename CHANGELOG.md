@@ -7,8 +7,8 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [0.1.0]
 
-Primeira versão pública (**alpha / pre-release**). Ver
-`notes/RELEASE-NOTES-v0.1.0.md` para escopo, itens não inclusos e *known issues*.
+Primeira versão pública (**alpha / pre-release**). Ver as *release notes* para escopo, itens
+não incluídos e *known issues*.
 
 ### Added
 
