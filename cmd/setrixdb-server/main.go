@@ -27,6 +27,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,11 +38,64 @@ import (
 const version = "0.1.0"
 
 type store struct {
-	mu   sync.RWMutex
-	sets map[string]*setrixdb.Set
+	mu      sync.RWMutex
+	sets    map[string]*setrixdb.Set
+	dataDir string // "" = somente memória
 }
 
-func newStore() *store { return &store{sets: map[string]*setrixdb.Set{}} }
+// newStore cria o armazenamento e, se houver diretório, carrega os conjuntos já salvos.
+func newStore(dataDir string) *store {
+	s := &store{sets: map[string]*setrixdb.Set{}, dataDir: dataDir}
+	s.loadFromDisk()
+	return s
+}
+
+// loadFromDisk carrega os `.sxset` existentes (persistência de CONJUNTOS, não de payload).
+func (s *store) loadFromDisk() {
+	if s.dataDir == "" {
+		return
+	}
+	entries, err := os.ReadDir(s.dataDir)
+	if err != nil {
+		log.Printf("sem conjuntos em %s (%v)", s.dataDir, err)
+		return
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".sxset") {
+			continue
+		}
+		name := strings.TrimSuffix(e.Name(), ".sxset")
+		set, err := setrixdb.ReadFile(filepath.Join(s.dataDir, e.Name()))
+		if err != nil {
+			log.Printf("falha ao carregar %s: %v", e.Name(), err)
+			continue
+		}
+		s.sets[name] = set
+	}
+	log.Printf("carregados %d conjuntos de %s", len(s.sets), s.dataDir)
+}
+
+// persist grava o conjunto em disco (no-op se a persistência estiver desligada).
+func (s *store) persist(name string, set *setrixdb.Set) {
+	if s.dataDir == "" {
+		return
+	}
+	if err := os.MkdirAll(s.dataDir, 0o755); err != nil {
+		log.Printf("erro ao criar dir de dados: %v", err)
+		return
+	}
+	if err := set.WriteFile(filepath.Join(s.dataDir, name+".sxset")); err != nil {
+		log.Printf("erro ao persistir %s: %v", name, err)
+	}
+}
+
+// forget remove o arquivo persistido do conjunto.
+func (s *store) forget(name string) {
+	if s.dataDir == "" {
+		return
+	}
+	os.Remove(filepath.Join(s.dataDir, name+".sxset"))
+}
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -82,7 +136,8 @@ func (s *store) handle(w http.ResponseWriter, r *http.Request) {
 		s.mu.Lock()
 		s.sets[name] = set
 		s.mu.Unlock()
-		writeJSON(w, 201, map[string]any{"name": name, "count": set.Len()})
+		s.persist(name, set)
+		writeJSON(w, 201, map[string]any{"name": name, "count": set.Len(), "persisted": s.dataDir != ""})
 
 	case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/has"):
 		name := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/sets/"), "/has")
@@ -121,6 +176,7 @@ func (s *store) handle(w http.ResponseWriter, r *http.Request) {
 			errJSON(w, 404, "conjunto não encontrado: "+name)
 			return
 		}
+		s.forget(name)
 		writeJSON(w, 200, map[string]any{"deleted": name})
 
 	case r.Method == http.MethodPost && (r.URL.Path == "/intersect" || r.URL.Path == "/union"):
@@ -200,9 +256,10 @@ func parseIDs(r *http.Request) ([]uint64, error) {
 
 func main() {
 	addr := flag.String("addr", ":8080", "endereço de escuta")
+	data := flag.String("data", "", "diretório para persistir conjuntos (.sxset); vazio = só memória")
 	flag.Parse()
 
-	s := newStore()
+	s := newStore(*data)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handle)
 

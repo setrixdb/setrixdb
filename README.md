@@ -255,6 +255,10 @@ curl -X POST localhost:8080/intersect   -d '{"sets":["nike","estoque"]}'
 Rotas: `/health`, `/sets`, `PUT|GET|DELETE /sets/{name}`, `GET /sets/{name}/has?id=`, `POST /intersect`,
 `POST /union`. Aceita JSON (`{"ids":[...]}`) ou texto puro (um ID por linha).
 
+**Persistência de conjuntos:** suba com `-data ./dados` e cada conjunto é gravado em `./dados/<nome>.sxset`
+(recarregado no boot). Persistimos **conjuntos de IDs** — e não payloads — mantendo o SetrixDB como
+**engine/índice**.
+
 ## 12. C ABI (FFI) — embutir em C/C++/Rust/Python
 
 ```bash
