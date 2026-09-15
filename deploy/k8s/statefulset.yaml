@@ -1,0 +1,57 @@
+# SetrixDB — nós de shard (3 réplicas) + Service headless.
+# Uso: kubectl apply -f deploy/k8s/statefulset.yaml
+# Detalhes e passo a passo: deploy/k8s/README.md
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: setrixdb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sxnode
+  namespace: setrixdb
+spec:
+  clusterIP: None
+  selector:
+    app: sxnode
+  ports:
+  - name: sx
+    port: 19100
+    targetPort: 19100
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sxnode
+  namespace: setrixdb
+spec:
+  serviceName: sxnode
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sxnode
+  template:
+    metadata:
+      labels:
+        app: sxnode
+    spec:
+      # 1 pod por nó físico
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels:
+                app: sxnode
+      containers:
+      - name: node
+        image: alpine:3.20
+        # mantém o pod vivo; o binário é enviado depois via `kubectl cp` (ver README)
+        command: ["sh", "-c", "sleep 1000000000"]
+        ports:
+        - name: sx
+          containerPort: 19100
+        resources:
+          requests: {cpu: "100m", memory: "64Mi"}
+          limits: {memory: "1Gi"}
