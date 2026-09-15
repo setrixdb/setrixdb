@@ -40,15 +40,19 @@ import (
 
 const version = "0.1.0"
 
+// maxBody limita o tamanho do corpo aceito (evita DoS por memória).
+const maxBody = 64 << 20 // 64 MiB
+
 type store struct {
 	mu      sync.RWMutex
 	sets    map[string]*setrixdb.Set
 	dataDir string // "" = somente memória
+	token   string // "" = sem autenticação
 }
 
 // newStore cria o armazenamento e, se houver diretório, carrega os conjuntos já salvos.
-func newStore(dataDir string) *store {
-	s := &store{sets: map[string]*setrixdb.Set{}, dataDir: dataDir}
+func newStore(dataDir, token string) *store {
+	s := &store{sets: map[string]*setrixdb.Set{}, dataDir: dataDir, token: token}
 	s.loadFromDisk()
 	return s
 }
@@ -111,6 +115,11 @@ func errJSON(w http.ResponseWriter, code int, msg string) {
 }
 
 func (s *store) handle(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
+	if s.token != "" && r.Header.Get("Authorization") != "Bearer "+s.token {
+		errJSON(w, http.StatusUnauthorized, "não autorizado")
+		return
+	}
 	switch {
 	case r.Method == http.MethodGet && r.URL.Path == "/health":
 		writeJSON(w, 200, map[string]string{"status": "ok", "version": version, "engine": "setrixdb"})
@@ -260,9 +269,10 @@ func parseIDs(r *http.Request) ([]uint64, error) {
 func main() {
 	addr := flag.String("addr", ":8080", "endereço de escuta")
 	data := flag.String("data", "", "diretório para persistir conjuntos (.sxset); vazio = só memória")
+	token := flag.String("token", "", "token Bearer exigido nas requisições (vazio = sem autenticação)")
 	flag.Parse()
 
-	s := newStore(*data)
+	s := newStore(*data, *token)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handle)
 
