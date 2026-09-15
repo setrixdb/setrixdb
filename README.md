@@ -6,9 +6,12 @@ _(antigo **ADDB** — Arithmetic Database)_
 [![Go](https://img.shields.io/badge/Go-1.22-00ADD8.svg)](https://go.dev)
 [![Status](https://img.shields.io/badge/status-proof--of--concept-orange.svg)](#)
 
-> **Motor de banco de dados em memória, não-relacional, não-vetorial e puramente
+> **Motor de conjuntos em memória, não-relacional, não-vetorial e puramente
 > aritmético**, escrito em **Go (Golang)** e projetado para **execução paralela em
 > aceleradores de hardware** (NPUs, SIMD/AVX-512) em chipsets de baixo consumo.
+>
+> **Não é "mais um banco":** é um **engine** que **coexiste** com o seu banco atual — ele guarda
+> **conjuntos de IDs** (não payloads) e responde presença e interseção em microssegundos.
 
 Projeto **pessoal** do Tião, **open source sob Apache-2.0**.
 

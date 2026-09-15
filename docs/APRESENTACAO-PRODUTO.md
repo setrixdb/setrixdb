@@ -1,5 +1,5 @@
 # SetrixDB — Apresentação do Produto
-### O banco de dados aritmético para a era da IA na borda
+### O motor de conjuntos para a era da IA na borda
 
 > Documento de *pitch*. Números reais medidos em 14/09/2026 (VPS 2 vCPU Zen4/AVX-512, Go 1.22 + cgo).
 > Fonte de todos os dados: `docs/RESULTADOS.md`.
@@ -14,41 +14,50 @@ recomendação, antifraude, telemetria, redes, bioinformática e em qualquer pip
 na borda.
 
 O hardware mudou para atender isso — **NPUs, SIMD largo (AVX-512/AVX10), chipsets de baixo
-consumo**. Mas os bancos de dados **não acompanharam**: continuam presos a registros,
-ponteiros, I/O de disco e estruturas que não vetorizam.
+consumo**. Os bancos de dados evoluíram para transações, analytics e busca por similaridade — e
+fazem isso muito bem. Mas **nenhum deles trata "conjunto de inteiros" como cidadão de primeira
+classe**.
 
-> **A lacuna:** não existe um banco que trate **"conjunto de inteiros"** como cidadão de
-> primeira classe, que seja **exato**, **em memória** e que **explore o hardware aritmético**
-> ao máximo.
+> **A lacuna:** falta uma camada dedicada a operações de conjunto **exatas**, **em memória** e que
+> **explore o hardware aritmético** ao máximo. Essa é a lacuna que o SetrixDB preenche — **ao lado**
+> dos bancos que você já usa, não no lugar deles.
 
 ---
 
 ## 2. O que é o SetrixDB
 
-Um motor de banco de dados **em memória, não-relacional, não-vetorial e puramente
-aritmético**.
+Um **motor de conjuntos embarcável** — em memória, não-relacional, não-vetorial e puramente
+aritmético.
 
 - A unidade fundamental de dados é um **ID `uint64`**.
 - A "inteligência" da busca **reduz-se a comparações e operações sobre inteiros** —
   sem ponteiros indiretos, sem hashing na consulta, sem estruturas de ponteiros.
-- O banco é um **shard de memória contíguo** (`[]uint64`), entregue ao hardware
+- O conjunto é um **shard de memória contíguo** (`[]uint64`), entregue ao hardware
   por **zero-copy (DMA)**.
 - Projetado para **execução paralela em aceleradores** (NPUs, SIMD) em **hardware modesto**.
 
-**Categoria que cunhamos:** *Arithmetic Database* / *SIMD-native set engine*.
+**Duas verdades de posicionamento:**
+1. **Não é "mais um banco".** É um **motor** que **coexiste** com o seu banco atual — o dado continua
+   onde você confia; o SetrixDB responde as perguntas de conjunto.
+2. **Ele armazena conjuntos de IDs, não os payloads.** O documento/registro fica no seu banco; o
+   SetrixDB guarda a representação dos IDs (MPHF + bitset) e faz a álgebra em microssegundos.
+
+**Categoria que cunhamos:** *Arithmetic / Set Database* (engine).
 Base técnica: **MPHF → bitset/shard → kernel vetorizado → cluster por shard**.
 
 ---
 
-## 3. O que o SetrixDB NÃO é (a pergunta que sempre vem)
+## 3. Onde ele se encaixa (por que não substitui nada)
 
-| Categoria | Como funciona | SetrixDB? |
+Cada categoria tem seu papel — e o SetrixDB **respeita todos eles**. Ele é uma **camada a mais**:
+
+| Categoria | Papel dela | SetrixDB é isto? |
 |---|---|---|
-| **Relacional** | tabelas, JOINs, SQL, disco | ❌ não é |
-| **Colunar** | analytics, compressão por coluna, disco | ❌ não é |
-| **NoSQL chave-valor** | registros/documentos por chave | ❌ não é |
-| **Vetorial** | similaridade **aproximada** por embeddings | ❌ não é |
-| **Grafo** | vértices/arestas, travessia | ❌ não é |
+| **Relacional** | tabelas, JOINs, SQL, transações | não — coexiste |
+| **Colunar** | analytics, compressão por coluna | não — coexiste |
+| **NoSQL chave-valor** | registros/documentos por chave | não — coexiste |
+| **Vetorial** | similaridade **aproximada** por embeddings | não — é o **par exato** |
+| **Grafo** | vértices/arestas, travessia | não — coexiste |
 | **Bitmap comprimido clássico** | conjuntos comprimidos, CPU escalar | ⚠️ primo — **nós somos o próximo salto** |
 | **SetrixDB** | **álgebra exata de conjuntos de IDs em RAM, vetorizada** | ✅ **é isso** |
 
@@ -136,7 +145,8 @@ Base técnica: **MPHF → bitset/shard → kernel vetorizado → cluster por sha
 2. **Ganha do estado da arte no que importa** — 24–30× na operação central (interseção).
 3. **Feito para o hardware de hoje** — SIMD/NPU, não disco.
 4. **Escala sem reescrever** — sharding + ring + conjuntos armazenados.
-5. **Compatível com o mundo real** — pode coexistir com qualquer stack; é um *engine* de conjuntos, não uma religião.
+5. **Compatível com o mundo real** — foi feito para **coexistir** com qualquer stack; é um *engine* de conjuntos, não uma substituição.
 
 > **Pitch em uma linha:** *"O SetrixDB responde interseções e membership sobre bilhões de IDs em
-> microssegundos, exato e em qualquer hardware — o banco que a era da IA na borda estava esperando."*
+> microssegundos, exato e em qualquer hardware — o motor de conjuntos que a era da IA na borda
+> estava esperando."*
