@@ -94,3 +94,40 @@ Segunda rodada, agora com uma **base de palavras/termos reais em escala**:
 
 > Isto é exatamente o caso de uso de **texto**: cada termo/frase (inclusive composto com espaço) é uma
 > chave; consultas combinadas são interseção de conjuntos. Ver `docs/TEXTO-E-FRASES.md`.
+
+---
+
+## 7. Escala 10M+ — MovieLens 25M (25 milhões de avaliações reais)
+
+Dataset público **MovieLens 25M** (GroupLens): **25.000.095 avaliações** de 162 mil usuários sobre
+62 mil filmes. Cada avaliação virou um ID `uint64` (índice da linha) e as facetas foram derivadas do
+catálogo (gênero, década do filme, nota). Ambiente: servidor de referência 2 vCPU Zen4/AVX-512, Go 1.22.
+
+| Conjunto (faceta) | membros |
+|---|---|
+| nota ≥ 4,0 | **12.452.811** |
+| Drama | **10.962.833** |
+| Comédia | 8.926.230 |
+| anos 2000 | 6.884.974 |
+
+Ingestão (CLI): ~1,5 s por conjunto de ~11M IDs.
+
+### Consultas facetadas (dados reais)
+
+| Consulta | Resultado | Verificação independente (`sort`/`comm`) |
+|---|---|---|
+| Drama **E** anos 2000 **E** nota ≥ 4 | **1.634.027** | ✅ idêntico |
+| Drama **E** nota ≥ 4 | **6.096.563** | ✅ idêntico |
+| Comédia **E** nota ≥ 4 **E** anos 2000 | **965.677** | ✅ idêntico |
+
+### Representação importa (mesmo universo de 25M IDs)
+
+| Caminho | memória/conjunto | latência (A∩B) |
+|---|---|---|
+| Merge de listas ordenadas (CLI) | 87,7 MB | 80,4 ms |
+| **Bitset denso (AVX-512)** | **2 MB** | **227 µs** (~350× mais rápido) |
+
+Com universo **denso** (25M IDs) e conjuntos grandes, o **bitset** é ao mesmo tempo **mais rápido** e
+**muito menor** que a lista ordenada: a memória do bitset é `universo/8` (constante no universo),
+enquanto a lista guarda 8 bytes por membro. É o caso de uso onde o motor brilha — e onde a escolha de
+representação decide o resultado.
