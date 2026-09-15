@@ -54,6 +54,8 @@ func main() {
 		err = cmdIntersect(args)
 	case "bench":
 		err = cmdBench(args)
+	case "id":
+		err = cmdID(args)
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -75,6 +77,7 @@ func usage() {
   setrixdb has      FILE.sxset ID [ID ...]
   setrixdb intersect A.sxset B.sxset [C.sxset ...] [--list] [--bench N]
   setrixdb bench   [-n 1000000]
+  setrixdb id       "termo ou frase" ["outro ..."]
 
 Input de build: um ID uint64 por linha (ou separado por vírgula/espaço).
 `)
@@ -312,6 +315,18 @@ func cmdIntersect(args []string) error {
 		}
 		fmt.Printf("  melhor de %d: %s\n", *bench, best.Round(time.Nanosecond))
 	}
+	return nil
+}
+
+func cmdID(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("use: setrixdb id \"termo ou frase\" [...]")
+	}
+	for _, t := range args {
+		id := addb.ComputeDeterministicID(t)
+		fmt.Printf("  %-30q -> %d\n", t, id)
+	}
+	fmt.Println("\n(o ID é o mesmo para a mesma string — palavras e frases com espaço são tratadas igual)")
 	return nil
 }
 

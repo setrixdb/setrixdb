@@ -240,11 +240,25 @@ res.Has(3)  // true
 Também: `Index` (MPHF — ID denso), `Union`, `Filter`. A superfície pública é o **pacote raiz**
 `setrixdb`; os pacotes sob `internal/` **não** são importáveis por design.
 
-## 11. Contribuindo
+## 11. API remota (servidor HTTP/JSON)
+
+```bash
+go run ./cmd/setrixdb-server -addr :8080
+
+curl -X PUT localhost:8080/sets/nike    -d '{"ids":[1,2,3]}'
+curl -X PUT localhost:8080/sets/estoque -d '{"ids":[3,4,5]}'
+curl -X POST localhost:8080/intersect   -d '{"sets":["nike","estoque"]}'
+# {"count":1,"sets":["nike","estoque"]}
+```
+
+Rotas: `/health`, `/sets`, `PUT|GET|DELETE /sets/{name}`, `GET /sets/{name}/has?id=`, `POST /intersect`,
+`POST /union`. Aceita JSON (`{"ids":[...]}`) ou texto puro (um ID por linha).
+
+## 12. Contribuindo
 
 Veja [`CONTRIBUTING.md`](CONTRIBUTING.md) e [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 
-## 12. Licença
+## 13. Licença
 
 Licenciado sob a **Apache License 2.0** — veja [`LICENSE`](LICENSE) e [`NOTICE`](NOTICE).
 Copyright 2026 Thiago Silva.
