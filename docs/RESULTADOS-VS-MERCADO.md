@@ -1,6 +1,6 @@
 # Head-to-head — SetrixDB vs soluções de mercado
 
-> Medido nesta VPS (AMD EPYC 9J45 / Zen4, 2 vCPU) em 2026-09-14, Go 1.22.12 + gcc 11.4 (cgo, AVX-512).
+> Medido em servidor de referência (AMD EPYC 9J45 / Zen4, 2 vCPU) em 2026-09-14, Go 1.22.12 + gcc 11.4 (cgo, AVX-512).
 > Código: `cmd/vsbench`. Dependências de terceiros **só do benchmark** (Roaring, Bloom).
 
 ## Membership (n = 1.000.000 chaves uint64)
