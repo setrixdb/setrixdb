@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Thiago Silva
+// Copyright (c) 2026 SetrixDB
 // SPDX-License-Identifier: Apache-2.0
 
 package setrixdb
@@ -24,8 +24,8 @@ func FuzzReadFile(f *testing.F) {
 	f.Add([]byte("SXSET1"))
 	f.Add([]byte("SXSET1S"))
 	f.Add([]byte("SXSET1X"))
-	f.Add([]byte("SXSET1S\x00\x00\x00\x00\x00\x00\x00\x05"))       // cabeçalho diz 5 IDs, sem corpo
-	f.Add([]byte("SXSET1S\xff\xff\xff\xff\xff\xff\xff\xff"))       // n gigante (overflow?)
+	f.Add([]byte("SXSET1S\x00\x00\x00\x00\x00\x00\x00\x05")) // cabeçalho diz 5 IDs, sem corpo
+	f.Add([]byte("SXSET1S\xff\xff\xff\xff\xff\xff\xff\xff")) // n gigante (overflow?)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		p := filepath.Join(t.TempDir(), "f.sxset")

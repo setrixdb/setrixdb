@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Thiago Silva
+// Copyright (c) 2026 SetrixDB
 // SPDX-License-Identifier: Apache-2.0
 
 // Command setrixdb-capi — ABI C (FFI) do SetrixDB para embutir em C/C++/Rust/Python.

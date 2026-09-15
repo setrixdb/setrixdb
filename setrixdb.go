@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Thiago Silva
+// Copyright (c) 2026 SetrixDB
 // SPDX-License-Identifier: Apache-2.0
 
 // Package setrixdb é a API pública do SetrixDB — o motor de conjuntos em memória,
