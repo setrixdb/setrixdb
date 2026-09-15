@@ -1,94 +1,98 @@
 # SetrixDB — the arithmetic set engine
 
-_(antes **ADDB** — Arithmetic Database)_
+_(formerly **ADDB** — Arithmetic Database)_
 
+[![CI](https://github.com/setrixdb/setrixdb/actions/workflows/ci.yml/badge.svg)](https://github.com/setrixdb/setrixdb/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/setrixdb/setrixdb)](https://goreportcard.com/report/github.com/setrixdb/setrixdb)
+[![Go Reference](https://pkg.go.dev/badge/github.com/setrixdb/setrixdb.svg)](https://pkg.go.dev/github.com/setrixdb/setrixdb)
+[![Release](https://img.shields.io/github/v/release/setrixdb/setrixdb?include_prereleases&sort=semver)](https://github.com/setrixdb/setrixdb/releases)
+[![Stars](https://img.shields.io/github/stars/setrixdb/setrixdb?style=flat)](https://github.com/setrixdb/setrixdb/stargazers)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-1.22-00ADD8.svg)](https://go.dev)
-[![Status](https://img.shields.io/badge/status-proof--of--concept-orange.svg)](#)
 
-> **Motor de conjuntos em memória, não-relacional, não-vetorial e puramente
-> aritmético**, escrito em **Go (Golang)** e projetado para **execução paralela em
-> aceleradores de hardware** (NPUs, SIMD/AVX-512) em chipsets de baixo consumo.
+> **An in-memory, non-relational, non-vector, purely arithmetic set engine**, written in
+> **Go (Golang)** and designed for **parallel execution on hardware accelerators**
+> (NPUs, SIMD/AVX-512) on **low-power chipsets**.
 >
-> **Não é "mais um banco":** é um **engine** que **coexiste** com o seu banco atual — ele guarda
-> **conjuntos de IDs** (não payloads) e responde presença e interseção em microssegundos.
+> **It is not "yet another database":** it is an **engine** that **coexists** with your current
+> database — it stores **sets of IDs** (not payloads) and answers membership and intersection in
+> microseconds.
 
-Projeto **open source (Apache-2.0)**.
+**Open source (Apache-2.0).**
 
-- **Apresentação / pitch:** [`docs/APRESENTACAO-PRODUTO.md`](docs/APRESENTACAO-PRODUTO.md)
-- **Todos os resultados medidos:** [`docs/RESULTADOS.md`](docs/RESULTADOS.md)
-- **Teste com dados reais (varejo):** [`docs/RESULTADOS-DADOS-REAIS.md`](docs/RESULTADOS-DADOS-REAIS.md)
+- **Product pitch:** [`docs/APRESENTACAO-PRODUTO.md`](docs/APRESENTACAO-PRODUTO.md)
+- **All measured results:** [`docs/RESULTADOS.md`](docs/RESULTADOS.md)
+- **Test with real data (retail):** [`docs/RESULTADOS-DADOS-REAIS.md`](docs/RESULTADOS-DADOS-REAIS.md)
 
 ---
 
-## 1. Objetivo
+## 1. Goal
 
-Implementar um motor de banco de dados **em memória** que:
+Build an **in-memory** database engine that:
 
-- **não é relacional** — não há tabelas, joins nem SQL;
-- **não é vetorial** — não faz busca por similaridade / embeddings;
-- é **puramente aritmético** — toda a "inteligência" da busca reduz-se a
-  comparações e operações sobre inteiros (`uint64`), sem ponteiros indiretos,
-  sem hashing e sem estruturas de ponteiros;
+- **is not relational** — no tables, joins or SQL;
+- **is not vector** — no similarity search / embeddings;
+- is **purely arithmetic** — all of the search "intelligence" reduces to
+  comparisons and operations over integers (`uint64`), with no pointer
+  indirection, no hashing and no pointer-based structures;
 
-e que seja capaz de **executar em paralelo em aceleradores de hardware**
-(NPUs, SIMD/AVX-512) em **chipsets de baixo consumo** (borda / Edge AI).
+and that can **run in parallel on hardware accelerators**
+(NPUs, SIMD/AVX-512) on **low-power chipsets** (edge / Edge AI).
 
-A unidade fundamental de dados é um **ID `uint64`**. O "banco" é um **shard de
-memória contíguo** (`[]uint64`) que pode ser entregue ao hardware por
+The fundamental data unit is a **`uint64` ID**. The "database" is a **contiguous
+memory shard** (`[]uint64`) that can be handed to hardware via
 **zero-copy** (DMA).
 
-## 2. Visão geral da arquitetura
+## 2. Architecture overview
 
-> **Resultado medido (14/09):** trocando o hash posicional por um **MPHF (CHD)** com
-> IDs únicos, 50 mi de termos → **0 colisão, 81,5 MiB, lookup O(1) em 113 ns**
-> (~115.000× mais rápido que a varredura linear). Ver
-> [`docs/RESULTADOS-MPHF.md`](docs/RESULTADOS-MPHF.md) e
+> **Measured result (Sep 14):** replacing the positional hash with an **MPHF (CHD)** that
+> yields unique IDs, 50M terms → **0 collisions, 81.5 MiB, O(1) lookup in 113 ns**
+> (~115,000× faster than a linear scan). See
+> [`docs/RESULTADOS-MPHF.md`](docs/RESULTADOS-MPHF.md) and
 > [`docs/REVISAO-ARQUITETURA.md`](docs/REVISAO-ARQUITETURA.md).
 
 ```
         ┌──────────────────────────────────────────────────────────────┐
-        │                          SetrixDB Engine                          │
+        │                          SetrixDB Engine                     │
         │                                                              │
    batch│  ┌──────────────┐   ┌──────────────┐        ┌──────────────┐  │
   ──────┼─▶│  Partition   │──▶│ Parallel     │───────▶│  Merge /     │  │
- (uint64)│  │  (por worker)│   │ Search Kernel│        │  Dedup       │──┼──▶ matches
+ (uint64)│  │  (per worker)│   │ Search Kernel│        │  Dedup       │──┼──▶ matches
         │  └──────────────┘   └──────┬───────┘        └──────────────┘  │
-        │                            │ comparação puramente aritmética │
+        │                            │ purely arithmetic comparison    │
         │                            ▼                                 │
         │                 ┌──────────────────────┐                     │
-        │                 │  Shard de RAM        │                     │
-        │                 │  contíguo []uint64   │◀── DMA / unsafe.Ptr │
+        │                 │  Contiguous RAM shard│                     │
+        │                 │  []uint64            │◀── DMA / unsafe.Ptr │
         │                 └──────────────────────┘                     │
         └──────────────────────────────────────────────────────────────┘
 ```
 
-### Camadas
+### Layers
 
-| Camada | Papel | Artefato |
+| Layer | Role | Artifact |
 |---|---|---|
-| **Shard** | Bloco contíguo de IDs em RAM; base do zero-copy | `internal/addb/search.go` |
-| **Kernel aritmético** | Comparação pura `uint64` (branchless, vetorizável) | `internal/addb/search.go` |
-| **Paralelizador** | Fatia o *batch* de consultas entre workers | `internal/addb/search.go` |
-| **Exposição DMA** | `unsafe.Pointer` para drivers C/C++ da NPU | `internal/addb/search.go` |
-| **Roteamento** | Consistent Hash Ring por `uint64` entre nós | `internal/addb/ring.go` |
+| **Shard** | Contiguous block of IDs in RAM; the zero-copy foundation | `internal/addb/search.go` |
+| **Arithmetic kernel** | Pure `uint64` comparison (branchless, vectorizable) | `internal/addb/search.go` |
+| **Parallelizer** | Splits the query *batch* across workers | `internal/addb/search.go` |
+| **DMA exposure** | `unsafe.Pointer` for C/C++ NPU drivers | `internal/addb/search.go` |
+| **Routing** | Consistent Hash Ring by `uint64` across nodes | `internal/addb/ring.go` |
 
-### Princípios de projeto
+### Design principles
 
-1. **Zero-copy por padrão.** Nada de alocação/cópia no caminho quente; o shard
-   é um slice contíguo repassado direto ao acelerador.
-2. **Aritmética pura.** O casamento é uma igualdade de inteiros — auto-vetorizável
-   pelo compilador e mapeável para lanes SIMD.
-3. **Paralelismo por dados.** Escala por *batching*, não por threads caras.
-4. **Energia mínima.** Menos movimentação de memória ⇒ menos joules por busca.
+1. **Zero-copy by default.** No allocation/copy on the hot path; the shard
+   is a contiguous slice handed straight to the accelerator.
+2. **Pure arithmetic.** A match is an integer equality — auto-vectorizable
+   by the compiler and mappable to SIMD lanes.
+3. **Data parallelism.** Scales through *batching*, not expensive threads.
+4. **Minimal energy.** Less memory movement ⇒ fewer joules per search.
 
-## 3. Modelo de dados
+## 3. Data model
 
-- **ID:** `uint64` (chave e valor — o dado *é* o número).
-- **Shard:** `[]uint64` contíguo, imutável durante a busca.
-- **Consulta (batch):** `[]uint64` — vários IDs buscados numa única chamada.
+- **ID:** `uint64` (key and value — the data *is* the number).
+- **Shard:** contiguous `[]uint64`, immutable during a search.
+- **Query (batch):** `[]uint64` — several IDs looked up in a single call.
 
-## 4. Mapeamento determinístico + busca paralela (exemplo)
+## 4. Deterministic mapping + parallel search (example)
 
 ```go
 package main
@@ -100,173 +104,175 @@ import (
 )
 
 func main() {
-	// 1. Transmutação simbólica: termo UTF-8 -> ID uint64 determinístico.
+	// 1. Symbolic transmutation: UTF-8 term -> deterministic uint64 ID.
 	idCasa := addb.ComputeDeterministicID("casa")
 	idMoradia := addb.ComputeDeterministicID("moradia")
 	idLar := addb.ComputeDeterministicID("lar")
 	fmt.Printf("ID ('casa'): %d · ID ('moradia'): %d · ID ('lar'): %d\n", idCasa, idMoradia, idLar)
 
-	// 2. Base de sinônimos em flat arrays (sem maps nativos).
+	// 2. Synonym base in flat arrays (no native maps).
 	syn := addb.NewSynonymStorage([]addb.SynonymEntry{
 		{Term: idCasa, Synonyms: []uint64{idMoradia, idLar}},
 	})
 
-	// 3. Lote de busca = termo + sinônimos, já em inteiros.
+	// 3. Search batch = term + synonyms, already as integers.
 	searchBatch := append([]uint64{idCasa}, syn.Synonyms(idCasa)...)
 
-	// 4. Shard de memória contíguo em RAM.
+	// 4. Contiguous memory shard in RAM.
 	ramDatabaseShard := []uint64{idCasa, idMoradia, idLar, 99999999, 88888888}
 
-	// 5. Busca paralela.
+	// 5. Parallel search.
 	matches := addb.ParallelSearchEngine(searchBatch, ramDatabaseShard)
-	fmt.Printf("Busca paralela concluída. IDs encontrados em RAM/NPU: %v\n", matches)
+	fmt.Printf("Parallel search done. IDs found in RAM/NPU: %v\n", matches)
 }
 ```
 
-Exemplo completo e executável: [`examples/busca_paralela/main.go`](examples/busca_paralela/main.go).
+Full, runnable example: [`examples/busca_paralela/main.go`](examples/busca_paralela/main.go).
 
-## 5. Diretrizes para integração com hardware e LLMs
+## 5. Guidelines for hardware and LLM integration
 
-### Comunicação com NPU / acelerador
+### Talking to an NPU / accelerator
 
-Expor o slice `[]uint64` via `unsafe.Pointer` para os drivers **C/C++** da NPU,
-permitindo transferências **DMA (Direct Memory Access)** **sem alocação nem cópia**
-de memória em Go.
+Expose the `[]uint64` slice via `unsafe.Pointer` to the NPU's **C/C++** drivers,
+enabling **DMA (Direct Memory Access)** transfers **with no allocation and no copy**
+of Go memory.
 
 ```go
-ptr := addb.UnsafePtr(shard) // *C.uint64_t pronto para o driver da NPU
+ptr := addb.UnsafePtr(shard) // *C.uint64_t ready for the NPU driver
 ```
 
-> O chamador **deve** garantir que o shard continue vivo durante a transferência e
-> que o slice não seja realocado. O shard deve ser *pinado* quando o driver exigir.
+> The caller **must** keep the shard alive during the transfer and must not let the
+> slice be reallocated. The shard must be *pinned* when the driver requires it.
 
-### Topologia distribuída
+### Distributed topology
 
-Implementar roteamento por **Consistent Hash Ring** usando o **próprio ID
-`uint64`** para distribuir **pacotes binários ultra-compactos** via **UDP ou gRPC**
-entre os nós do cluster.
+Implement routing via a **Consistent Hash Ring** using the **`uint64` ID itself**
+to distribute **ultra-compact binary packets** over **UDP or gRPC**
+between cluster nodes.
 
-- `AddNode(n)` / `RemoveNode(n)` recomputam o anel sem re-hash total.
-- `Route(id)` devolve o nó dono da chave (posição por *hash* no anel).
+- `AddNode(n)` / `RemoveNode(n)` recompute the ring without a full re-hash.
+- `Route(id)` returns the node that owns the key (position by *hash* on the ring).
 
-### Casos de uso primários
+### Primary use cases
 
-- **Pré-filtro ultrarrápido para pipelines de RAG** — cortar candidatos antes de
-  gastar compute caro.
-- **Indexação de memória de longo prazo de LLMs de borda (Edge AI)** — IDs de
-  fatos/tokens em RAM, busca por igualdade em microssegundos.
-- **Deduplicação de tokens** com **consumo energético mínimo**.
+- **Ultra-fast pre-filter for RAG pipelines** — cut candidates before spending
+  expensive compute.
+- **Long-term memory indexing for edge LLMs (Edge AI)** — IDs of facts/tokens in
+  RAM, equality search in microseconds.
+- **Token deduplication** with **minimal energy consumption**.
 
-## 6. Estrutura do repositório
+## 6. Repository structure
 
 ```
-addb/
-├── README.md                     ← este documento
+.
+├── README.md                     ← this document
 ├── go.mod
+├── setrixdb.go                   ← public Go API (package setrixdb)
 ├── docs/
-│   ├── ESPECIFICACAO.md          ← prompt de especificação original
-│   └── ARQUITETURA.md            ← detalhamento técnico
-├── internal/addb/
-│   ├── hash.go                   ← ComputeDeterministicID (termo UTF-8 -> uint64)
-│   ├── synonyms.go               ← FlatSynonymStorage (flat arrays + offsets)
-│   ├── search.go                 ← kernel aritmético + busca paralela + DMA
-│   └── ring.go                   ← consistent hash ring
-├── internal/mphf/                ← MPHF (CHD) — ID único, 0 colisão
-├── cmd/mphfbench/                ← mede bits/chave, colisões e ops/s do MPHF
-├── examples/busca_paralela/main.go
-├── cmd/benchmark/main.go         ← mede ops/segundo (executável)
-└── bench/search_bench_test.go    ← benchmark `go test -bench`
+│   ├── ESPECIFICACAO.md          ← original specification
+│   └── ARQUITETURA.md            ← technical deep dive
+├── internal/
+│   ├── addb/                     ← deterministic ID, synonym storage, kernel, ring
+│   ├── mphf/                     ← MPHF (CHD) — unique IDs, 0 collisions
+│   ├── simd/                     ← AVX-512 kernel (cgo) + portable scalar fallback
+│   └── cluster/                  ← sharding, cluster, binary protocol
+├── cmd/                          ← CLI, HTTP server, C ABI, benchmarks
+│   ├── setrixdb/                 ← CLI (build/info/has/intersect/bench)
+│   ├── setrixdb-server/          ← HTTP/JSON server
+│   └── setrixdb-capi/            ← C ABI (c-shared)
+├── examples/                     ← runnable examples (busca_paralela, capi)
+└── bench/                        ← `go test -bench` benchmarks
 ```
 
-## 7. Teste de performance (ops/segundo)
+## 7. Performance test (ops/second)
 
-Existem duas formas de medir:
+There are two ways to measure:
 
 ```bash
-# 1) Executável (imprime ops/s na hora)
+# 1) Executable (prints ops/s immediately)
 go run ./cmd/benchmark
 
-# com parâmetros explícitos (shard 65.536 IDs, batch de 512, 1.000 buscas)
+# with explicit parameters (shard of 65,536 IDs, batch of 512, 1,000 searches)
 go run ./cmd/benchmark -shard 65536 -batch 512 -iters 1000
 
-# 2) Benchmark idiomático do Go
+# 2) Idiomatic Go benchmark
 go test -bench=. -benchmem ./bench/
 ```
 
-O benchmark mede **buscas por segundo** (`buscas/s`) e **consultas por segundo**
-(`consultas/s`) sobre um shard sintético.
+The benchmark measures **searches per second** (`searches/s`) and **queries per second**
+(`queries/s`) over a synthetic shard.
 
 ## 8. Roadmap
 
-- [x] Kernel SIMD nativo (AVX-512) via cgo/intrínsecos.
-- [x] Anel de consistência com *rebalancing* incremental.
-- [x] Protocolo binário entre nós (TCP zero-copy + conjuntos armazenados).
-- [ ] Backend de driver de NPU (DMA + *pinning* de shard).
-- [ ] Protocolo UDP compacto entre nós.
-- [ ] Benchmarks de energia (J/busca) em SBC.
-- [ ] Testes de escala em nuvem (cluster real multi-nó).
+- [x] Native SIMD kernel (AVX-512) via cgo/intrinsics.
+- [x] Consistent ring with incremental *rebalancing*.
+- [x] Binary protocol between nodes (zero-copy TCP + stored sets).
+- [ ] NPU driver backend (DMA + shard *pinning*).
+- [ ] Compact UDP protocol between nodes.
+- [ ] Energy benchmarks (J/search) on SBCs.
+- [ ] At-scale tests in the cloud (real multi-node cluster).
 
 ## 9. CLI
 
 ```bash
 go build -o setrixdb ./cmd/setrixdb
 
-# construir um conjunto a partir de IDs (um por linha, ou CSV)
-./setrixdb build -o nike.sxset -input nike.txt
+# build a set from IDs (one per line, or CSV)
+./setrixdb build -o catalog.sxset -input ids.txt
 
-# info / pertencimento
-./setrixdb info nike.sxset
-./setrixdb has  nike.sxset 12345 67890
+# info / membership
+./setrixdb info catalog.sxset
+./setrixdb has  catalog.sxset 12345 67890
 
-# interseção de N conjuntos (o "E" de uma busca facetada)
-./setrixdb intersect vermelho.sxset tam_M.sxset nike.sxset --bench 500
+# intersection of N sets (the "AND" of a faceted query)
+./setrixdb intersect color_red.sxset size_m.sxset brand_x.sxset in_stock.sxset --bench 500
 ```
 
-Exemplo real (5 milhões de produtos): interseção de **4 conjuntos** (cor, tamanho, marca, estoque)
-→ **4,1 ms** na 1ª execução. Formato `.sxset` é binário e portátil.
+Real example (5 million products): intersection of **4 sets** (color, size, brand, stock)
+→ **4.1 ms** on the first run. The `.sxset` format is binary and portable.
 
-## 10. API (Go embarcável)
+## 10. Embeddable API (Go)
 
 ```go
 import "github.com/setrixdb/setrixdb"
 
-vermelho := setrixdb.NewSet(1, 2, 3, 4, 5)
-tamM     := setrixdb.NewSet(3, 4, 6)
+red  := setrixdb.NewSet(1, 2, 3, 4, 5)
+sizeM := setrixdb.NewSet(3, 4, 6)
 
-res := setrixdb.Intersect(vermelho, tamM) // {3, 4}
+res := setrixdb.Intersect(red, sizeM) // {3, 4}
 res.Len()   // 2
 res.Has(3)  // true
 ```
 
-Também: `Index` (MPHF — ID denso), `Union`, `Filter`. A superfície pública é o **pacote raiz**
-`setrixdb`; os pacotes sob `internal/` **não** são importáveis por design.
+Also available: `Index` (MPHF — dense ID), `Union`, `Filter`. The public surface is the **root
+package** `setrixdb`; packages under `internal/` are **not** importable by design.
 
-## 11. API remota (servidor HTTP/JSON)
+## 11. Remote API (HTTP/JSON server)
 
 ```bash
 go run ./cmd/setrixdb-server -addr :8080
 
-curl -X PUT localhost:8080/sets/nike    -d '{"ids":[1,2,3]}'
-curl -X PUT localhost:8080/sets/estoque -d '{"ids":[3,4,5]}'
-curl -X POST localhost:8080/intersect   -d '{"sets":["nike","estoque"]}'
-# {"count":1,"sets":["nike","estoque"]}
+curl -X PUT localhost:8080/sets/a -d '{"ids":[1,2,3]}'
+curl -X PUT localhost:8080/sets/b -d '{"ids":[3,4,5]}'
+curl -X POST localhost:8080/intersect -d '{"sets":["a","b"]}'
+# {"count":1,"sets":["a","b"]}
 ```
 
-Rotas: `/health`, `/sets`, `PUT|GET|DELETE /sets/{name}`, `GET /sets/{name}/has?id=`, `POST /intersect`,
-`POST /union`. Aceita JSON (`{"ids":[...]}`) ou texto puro (um ID por linha).
+Routes: `/health`, `/sets`, `PUT|GET|DELETE /sets/{name}`, `GET /sets/{name}/has?id=`, `POST /intersect`,
+`POST /union`. Accepts JSON (`{"ids":[...]}`) or plain text (one ID per line).
 
-**Persistência de conjuntos:** suba com `-data ./dados` e cada conjunto é gravado em `./dados/<nome>.sxset`
-(recarregado no boot). Persistimos **conjuntos de IDs** — e não payloads — mantendo o SetrixDB como
-**engine/índice**.
+**Set persistence:** start with `-data ./data` and each set is written to `./data/<name>.sxset`
+(reloaded on boot). We persist **sets of IDs** — not payloads — keeping SetrixDB as an
+**engine/index**.
 
-## 12. C ABI (FFI) — embutir em C/C++/Rust/Python
+## 12. C ABI (FFI) — embed in C/C++/Rust/Python
 
 ```bash
 CGO_ENABLED=1 go build -buildmode=c-shared -o libsetrixdb.so ./cmd/setrixdb-capi
-# gera libsetrixdb.so + libsetrixdb.h
+# produces libsetrixdb.so + libsetrixdb.h
 ```
 
-Interface (handle = inteiro; arrays devolvidos via `malloc`, libere com `sx_free`):
+Interface (handle = integer; arrays returned via `malloc`, free with `sx_free`):
 
 ```c
 char*      sx_version();
@@ -280,15 +286,15 @@ int        sx_set_free(long long h);
 void       sx_free(void* p);
 ```
 
-Exemplos prontos em [`examples/capi/`](examples/capi) — testados de **C** (gcc) e **Python** (ctypes).
+Ready-made examples in [`examples/capi/`](examples/capi) — tested from **C** (gcc) and **Python** (ctypes).
 
-## 13. Contribuindo
+## 13. Contributing
 
-Veja [`CONTRIBUTING.md`](CONTRIBUTING.md) e [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 
-## 14. Licença
+## 14. License
 
-Licenciado sob a **Apache License 2.0** — veja [`LICENSE`](LICENSE) e [`NOTICE`](NOTICE).
+Licensed under the **Apache License 2.0** — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
 
-Contato do projeto: **contato@setrixdb.com**.
+Project contact: **contato@setrixdb.com**.
 Copyright 2026 SetrixDB.
