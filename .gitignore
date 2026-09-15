@@ -15,3 +15,11 @@ coverage.txt
 # artefatos do build da C ABI
 /examples/capi/libsetrixdb.so
 /examples/capi/libsetrixdb.h
+
+# Segredos / ambiente
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.log
