@@ -146,7 +146,7 @@ Teste real: função `ExtractSet` (`internal/addb/extract.go`).
 2. **Membership:** paridade com `map`, 2,2× menos memória.
 3. **Interseção:** bitset denso + AVX-512 → **líder** (24–30× vs Roaring), denso e esparso (enquanto couber).
 4. **Escala:** sharding por range distribui o compute; memória horizontal = multi-máquina + híbrido bitset/roaring.
-5. **Distribuído:** nós por shard over-the-wire (TCP) — correto em loopback e VPS↔nó remoto; custo = rede.
+5. **Distribuído:** nós por shard over-the-wire (TCP) — correto em loopback e entre máquinas reais; custo = rede.
 6. **Posicionamento mantido:** membership/interseção aritmética exata — **não** vira NoSQL nem vetorial.
 
 _Reproduzível: `go test ./...` + `go run ./cmd/{setbench,vsbench,sparsebench,shardbench,mphfbench}`._
@@ -178,16 +178,16 @@ Interseção (1M×1M): range **densa** → bitset AVX-512 **4 µs**; universo **
 |---|---|
 | Correção (local vs distribuído) | **idêntico** em todos os testes |
 | 4 nós locais (loopback), universo 2²⁶ | local 282 µs · distribuído **3,3 ms/consulta** (307 q/s) |
-| **VPS ↔ nó remoto** (VPN), universo 2²⁴, 2 shards | correto; **275 ms/consulta** (rede-bound: link WG ~2 MB/s) |
+| **servidor ↔ nó remoto** (link lento), universo 2²⁴, 2 shards | correto; **275 ms/consulta** (rede-bound: link ~2 MB/s) |
 
 **Veredito:** o SetrixDB escala **horizontalmente** — memória e compute distribuídos entre máquinas. O gargalo era a **rede** (transmitir a consulta a cada query); a solução implementada são **conjuntos ARMAZENADOS**: a interseção `A ∩ B` de dois sets já armazenados só carrega o **nome** na rede (cada nó faz o `AND` local), sem transmitir dados.
 
 | cenário | armazenado (só nomes) | ad-hoc (transmite a consulta) |
 |---|---|---|
 | 4 nós locais (2²⁶) | **559 µs** | 3,29 ms (**6×**) |
-| **VPS ↔ nó remoto** (WG, 2²⁴) | **19,4 ms** | 364 ms (**19×**) |
+| **servidor ↔ nó remoto** (rede, 2²⁴) | **19,4 ms** | 364 ms (**19×**) |
 
-Em link lento (VPN ~2 MB/s) o ganho explode — é o modo escalável do cluster.
+Em link lento (link ~2 MB/s) o ganho explode — é o modo escalável do cluster.
 
 ---
 
@@ -202,6 +202,6 @@ Em link lento (VPN ~2 MB/s) o ganho explode — é o modo escalável do cluster.
 | 16 | 7% (ideal 6%) | 9% (ideal 6%) | 94% |
 | 64 | 2% (ideal 1,5%) | 3% (ideal 1,6%) | 99% |
 
-**Veredito:** entrar/sair um nó remapeia só ~1/(N+1) dos IDs (vs ~tudo no módulo ingênuo) — a base pra **rebalancear o cluster sem re-shuffle total**. É a peça de topologia que casa com o plano de clusterizar o banco em instâncias (plataforma de nuvem).
+**Veredito:** entrar/sair um nó remapeia só ~1/(N+1) dos IDs (vs ~tudo no módulo ingênuo) — a base pra **rebalancear o cluster sem re-shuffle total**. É a peça de topologia que casa com o plano de clusterizar o banco em instâncias (cluster real).
 
 **Integração ring+cluster** (`internal/cluster/sharded.go` + `cmd/ringclusterdemo`): cada shard é atribuído a um nó **pelo anel**. Verificado: resultado **idêntico ao local** (12 shards / 3 nós) e, entrando +1 nó, **2/12 shards mudam de dono** (17%, ideal 25%) — no módulo mudariam ~todos.

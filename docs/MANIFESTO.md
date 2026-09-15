@@ -1,7 +1,7 @@
 # SetrixDB — o motor de conjuntos que faltava
 ### Visão de produto · manifesto
 
-> **Verdade primeiro:** todo número abaixo foi **medido** (14/09/2026, VPS 2 vCPU AMD Zen4 com AVX-512,
+> **Verdade primeiro:** todo número abaixo foi **medido** (14/09/2026, servidor 2 vCPU AMD Zen4 com AVX-512,
 > Go 1.22). O que é visão está marcado como visão. Nada aqui é promessa disfarçada de resultado.
 
 ---

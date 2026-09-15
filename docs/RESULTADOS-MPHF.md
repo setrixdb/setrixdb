@@ -1,6 +1,6 @@
 # Resultados medidos — MPHF (CHD) para o dicionário do SetrixDB
 
-> Números reais, medidos nesta VPS em **2026-09-14**. Hardware: **2 vCPU** (AMD EPYC
+> Números reais, medidos em servidor de referência em **2026-09-14**. Hardware: **2 vCPU** (AMD EPYC
 > 9J45), Go **1.22.12**. Código: `internal/mphf/` (CHD escrito do zero) + `cmd/mphfbench`.
 > Nada aqui é estimativa — é `go run`/`go test` executado.
 

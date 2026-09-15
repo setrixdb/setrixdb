@@ -97,7 +97,7 @@ Cada categoria tem seu papel — e o SetrixDB **respeita todos eles**. Ele é um
 | **Interseção esparsa** (universo 2²⁶) | **303 µs** | Roaring64 9,26 ms | **~30×** |
 | **Membership** | paridade c/ `map`, **exato** | `map` 22,3 B/chave | **2,2× menos memória** |
 | **Memória** (universo 2³⁶, 4M chaves) | **1,73 MB** (híbrido) | bitset denso 8,59 GB | memória **∝ dados**, não ∝ universo |
-| **Distribuído** (link lento WG) | **19,4 ms** (sets armazenados) | 364 ms (ad-hoc) | **19×** |
+| **Distribuído** (link lento) | **19,4 ms** (sets armazenados) | 364 ms (ad-hoc) | **19×** |
 | **Topologia** (entra 1 nó, 16 nós) | **7%** remapeado (ideal 6%) | módulo: ~94% | rebalanceamento incremental |
 
 **Correção idêntica** entre local e distribuído em todos os testes (`go test ./...` verde:
@@ -110,8 +110,8 @@ Cada categoria tem seu papel — e o SetrixDB **respeita todos eles**. Ele é um
 - **Busca & filtragem em escala** — cruzamento de listas de IDs (`A ∩ B`), facetas, dedup.
 - **Recomendação / feature store** — geração de candidatos em microssegundos.
 - **Antifraude & segurança** — listas de bloqueio, correlação de sinais, ACLs.
-- **Telemetria & observabilidade** — séries por ID (mesmo território do `TSDB`).
-- **Rede & nuvem** — tabelas de rotas, VPCs, políticas L4 (a própria **plataforma de nuvem**).
+- **Telemetria & observabilidade** — séries por ID (mesmo território do motores de telemetria).
+- **Rede & nuvem** — tabelas de rotas, VPCs, políticas L4 (plataformas de nuvem).
 - **Borda / Edge AI** — latência e energia mínimas em SBCs e NPUs.
 - **Busca exata em dicionários** — ex.: os ~50 mi de termos validados.
 - **Bioinformática / DSP** — k-mers, correlação de sinais.
@@ -122,7 +122,7 @@ Cada categoria tem seu papel — e o SetrixDB **respeita todos eles**. Ele é um
 
 - **POC em Go**, ~28 arquivos, ~13 famílias de teste — **todos os testes verdes**.
 - Resultados **medidos e reproduzíveis** (`go test ./...` + `cmd/{setbench,vsbench,sparsebench,shardbench,mphfbench,ringbench}`).
-- **Distribuído validado de verdade**: 4 nós locais e **VPS ↔ nó remoto via VPN**.
+- **Distribuído validado de verdade**: 4 nós locais e **servidor ↔ nó remoto (rede)**.
 - Documentação completa (`README`, `ESPECIFICACAO`, `ARQUITETURA`, `RESULTADOS`) + PDF consolidado.
 - **Sem dependências de terceiros** no núcleo; MPHF, bitset, ring e cluster escritos do zero.
 
@@ -133,7 +133,7 @@ Cada categoria tem seu papel — e o SetrixDB **respeita todos eles**. Ele é um
 | Fase | Entrega |
 |---|---|
 | ✅ Feito | MPHF, bitset/SparseSet/híbrido, kernel AVX-512, sharding, cluster over-the-wire, hash ring |
-| **Agora** | **Testes de escala em nuvem (plataforma de nuvem)** — cluster real multi-nó |
+| **Agora** | **Testes de escala em nuvem (cluster real)** — cluster real multi-nó |
 | Próximo | Driver de **NPU** (DMA zero-copy + pinning), protocolo UDP/gRPC, benchmarks de **energia (J/busca)** em SBC |
 | Produto | SDK embarcável (Go/C) + serviço de cluster gerenciado (edge-first) |
 
