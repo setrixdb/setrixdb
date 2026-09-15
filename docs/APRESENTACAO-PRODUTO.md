@@ -1,7 +1,7 @@
 # SetrixDB — Apresentação do Produto
 ### O motor de conjuntos para a era da IA na borda
 
-> Documento de *pitch*. Números reais medidos em 14/09/2026 (VPS 2 vCPU Zen4/AVX-512, Go 1.22 + cgo).
+> Documento de *pitch*. Números reais medidos em 14/09/2026 (servidor de referência 2 vCPU Zen4/AVX-512, Go 1.22 + cgo).
 > Fonte de todos os dados: `docs/RESULTADOS.md`.
 
 ---
