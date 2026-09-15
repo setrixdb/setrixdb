@@ -289,4 +289,6 @@ Veja [`CONTRIBUTING.md`](CONTRIBUTING.md) e [`CODE_OF_CONDUCT.md`](CODE_OF_CONDU
 ## 14. Licença
 
 Licenciado sob a **Apache License 2.0** — veja [`LICENSE`](LICENSE) e [`NOTICE`](NOTICE).
+
+Contato do projeto: **contato@setrixdb.com**.
 Copyright 2026 SetrixDB.
