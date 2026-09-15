@@ -17,6 +17,7 @@ Projeto **pessoal** do Tião, **open source sob Apache-2.0**.
 
 - **Apresentação / pitch:** [`docs/APRESENTACAO-PRODUTO.md`](docs/APRESENTACAO-PRODUTO.md)
 - **Todos os resultados medidos:** [`docs/RESULTADOS.md`](docs/RESULTADOS.md)
+- **Teste com dados reais (varejo):** [`docs/RESULTADOS-DADOS-REAIS.md`](docs/RESULTADOS-DADOS-REAIS.md)
 
 ---
 
