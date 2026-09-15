@@ -6,7 +6,7 @@
 package simd
 
 /*
-#cgo CFLAGS: -O3 -mavx512f
+#cgo CFLAGS: -O3
 #include <stdint.h>
 size_t addb_extract_set(const uint64_t* words, size_t n, uint64_t* out);
 */
@@ -14,8 +14,8 @@ import "C"
 
 import "unsafe"
 
-// ExtractSet devolve, em ordem crescente, as posições (IDs) dos bits setados,
-// usando AVX-512 (pula palavras zeradas rápido).
+// ExtractSet devolve, em ordem crescente, as posições (IDs) dos bits setados.
+// Portável: usa AVX-512 quando disponível (dispatch em runtime), senão escalar.
 func ExtractSet(words []uint64) []uint64 {
 	if len(words) == 0 {
 		return nil
