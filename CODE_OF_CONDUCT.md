@@ -32,7 +32,7 @@ Exemplos de comportamento inaceitável:
 ## Aplicação
 
 Casos de comportamento abusivo, de assédio ou inaceitável podem ser reportados aos mantenedores do
-projeto. Todas as reclamações serão analisadas e investigadas pronta e justamente.
+projeto pelo e-mail **contato@setrixdb.com**. Todas as reclamações serão analisadas e investigadas pronta e justamente.
 
 ## Atribuição
 
