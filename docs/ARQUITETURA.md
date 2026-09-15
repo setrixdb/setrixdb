@@ -1,6 +1,6 @@
 # Arquitetura — SetrixDB
 
-Detalhamento técnico do **Arithmetic Database**, conforme a especificação do Tião.
+Detalhamento técnico do motor de conjuntos (Arithmetic Set Engine) conforme a especificação de origem do projeto.
 
 ## 1. Visão geral
 

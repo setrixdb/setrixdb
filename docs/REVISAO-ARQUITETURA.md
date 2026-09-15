@@ -1,7 +1,7 @@
 # Revisão de Arquitetura — SetrixDB
 
 > Parecer honesto de **engenharia de software** e **engenharia de IA** sobre a spec do SetrixDB,
-> pedido pelo Tião ("me responda honestamente"). Nada aqui é para agradar: é para não
+feita a pedido do projeto, de forma honesta. Nada aqui é para agradar: é para não
 > deployarmos uma arquitetura que não fecha.
 
 ## Veredito rápido
