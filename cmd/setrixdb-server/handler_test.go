@@ -20,7 +20,7 @@ func call(s *store, method, path, body, ctype string) *httptest.ResponseRecorder
 }
 
 func TestServerFlow(t *testing.T) {
-	s := newStore("") // só memória
+	s := newStore("", "") // só memória, sem auth
 
 	if rec := call(s, "GET", "/health", "", ""); rec.Code != 200 {
 		t.Fatalf("health: %d", rec.Code)
@@ -57,12 +57,31 @@ func TestServerFlow(t *testing.T) {
 	}
 }
 
+func TestServerAuth(t *testing.T) {
+	s := newStore("", "segredo")
+	// sem token -> 401
+	req := httptest.NewRequest("GET", "/health", nil)
+	rec := httptest.NewRecorder()
+	s.handle(rec, req)
+	if rec.Code != 401 {
+		t.Fatalf("sem token deveria dar 401, veio %d", rec.Code)
+	}
+	// com token -> 200
+	req = httptest.NewRequest("GET", "/health", nil)
+	req.Header.Set("Authorization", "Bearer segredo")
+	rec = httptest.NewRecorder()
+	s.handle(rec, req)
+	if rec.Code != 200 {
+		t.Fatalf("com token deveria dar 200, veio %d", rec.Code)
+	}
+}
+
 func TestServerPersistenceReload(t *testing.T) {
 	dir := t.TempDir()
-	s := newStore(dir)
+	s := newStore(dir, "")
 	call(s, "PUT", "/sets/a", `{"ids":[1,2,3]}`, "application/json")
 
-	s2 := newStore(dir) // deve recarregar do disco
+	s2 := newStore(dir, "") // deve recarregar do disco
 	rec := call(s2, "GET", "/sets/a", "", "")
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"count":3`) {
 		t.Fatalf("recarregar do disco: %d %s", rec.Code, rec.Body.String())

@@ -11,3 +11,7 @@ coverage.txt
 # IDE
 .idea/
 .vscode/
+
+# artefatos do build da C ABI
+/examples/capi/libsetrixdb.so
+/examples/capi/libsetrixdb.h
