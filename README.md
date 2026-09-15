@@ -1,10 +1,19 @@
-# ADDB — Arithmetic Database
+# SetrixDB — Arithmetic Database
+
+_(antigo **ADDB** — Arithmetic Database)_
+
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.22-00ADD8.svg)](https://go.dev)
+[![Status](https://img.shields.io/badge/status-proof--of--concept-orange.svg)](#)
 
 > **Motor de banco de dados em memória, não-relacional, não-vetorial e puramente
 > aritmético**, escrito em **Go (Golang)** e projetado para **execução paralela em
 > aceleradores de hardware** (NPUs, SIMD/AVX-512) em chipsets de baixo consumo.
 
-Projeto **pessoal** do Tião. Repositório de documentação + prova de conceito.
+Projeto **pessoal** do Tião, **open source sob Apache-2.0**.
+
+- **Apresentação / pitch:** [`docs/APRESENTACAO-PRODUTO.md`](docs/APRESENTACAO-PRODUTO.md)
+- **Todos os resultados medidos:** [`docs/RESULTADOS.md`](docs/RESULTADOS.md)
 
 ---
 
@@ -183,13 +192,24 @@ go test -bench=. -benchmem ./bench/
 O benchmark mede **buscas por segundo** (`buscas/s`) e **consultas por segundo**
 (`consultas/s`) sobre um shard sintético.
 
-## 8. Roadmap (rascunho)
+## 8. Roadmap
 
-- [ ] Kernel SIMD nativo (AVX-512) via cgo/intrínsecos.
+- [x] Kernel SIMD nativo (AVX-512) via cgo/intrínsecos.
+- [x] Anel de consistência com *rebalancing* incremental.
+- [x] Protocolo binário entre nós (TCP zero-copy + conjuntos armazenados).
 - [ ] Backend de driver de NPU (DMA + *pinning* de shard).
-- [ ] Anel de consistência com *rebalancing* incremental.
-- [ ] Protocolo binário UDP compacto entre nós.
+- [ ] Protocolo UDP compacto entre nós.
 - [ ] Benchmarks de energia (J/busca) em SBC.
+- [ ] Testes de escala em nuvem (cluster real multi-nó).
+
+## 9. Contribuindo
+
+Veja [`CONTRIBUTING.md`](CONTRIBUTING.md) e [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
+
+## 10. Licença
+
+Licenciado sob a **Apache License 2.0** — veja [`LICENSE`](LICENSE) e [`NOTICE`](NOTICE).
+Copyright 2026 Thiago Silva.
 
 ---
 
