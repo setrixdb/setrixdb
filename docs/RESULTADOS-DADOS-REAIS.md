@@ -1,4 +1,4 @@
-# Resultados com DADOS REAIS — varejo (Online Retail II)
+# Resultados com DADOS REAIS — varejo e palavras
 
 > Teste de ponta a ponta com um **dataset público real** de e-commerce/retail, usando a **CLI**
 > (`setrixdb build` + `setrixdb intersect`) e verificação independente do resultado.
@@ -64,3 +64,33 @@ LC_ALL=C comm -12 <(sort uk.txt) <(sort q4_2011.txt) \
   maior) — e o motor já demonstrou esse patamar nos benchmarks sintéticos (`docs/RESULTADOS.md`).
 
 _Reprodutível: baixe o dataset, derive as listas de IDs, rode `setrixdb build`/`intersect`._
+
+---
+
+## 6. Base de PALAVRAS reais — títulos da Wikipédia (19,3 milhões de termos)
+
+Segunda rodada, agora com uma **base de palavras/termos reais em escala**:
+
+- **Fonte:** dump público `enwiki-latest-all-titles-in-ns0` (títulos reais da Wikipédia, incluindo redirects).
+- **Volume:** **19.264.252 termos** (títulos). Observação: o dump usa `_` no lugar de espaço
+  (ex.: `United_States`), então "palavra composta/frase" aparece como termo com underscore.
+- Conjuntos derivados:
+
+| Conjunto | Critério | Tamanho |
+|---|---|---|
+| `has_space` | termo de **múltiplas palavras** (`_`) | 16.926.181 |
+| `len20` | comprimento ≥ 20 | 8.514.223 |
+| `start_s` | começa com **s/S** | 1.616.610 |
+| `united` | prefixo `United` | 38.636 |
+
+**Consultas (interseção):**
+
+| Consulta | Resultado | Tempo (melhor de 200) |
+|---|---|---|
+| multi-palavra **E** começa com `s` | **1.408.399** | **9,5 ms** |
+| multi-palavra **E** começa com `United` | **38.602** | **8,0 ms** |
+
+**Verificação independente** (`comm`/`sort`): **1.408.399** e **38.602** — **idênticos**. ✔️
+
+> Isto é exatamente o caso de uso de **texto**: cada termo/frase (inclusive composto com espaço) é uma
+> chave; consultas combinadas são interseção de conjuntos. Ver `docs/TEXTO-E-FRASES.md`.
