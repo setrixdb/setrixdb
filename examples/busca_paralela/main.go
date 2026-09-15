@@ -6,7 +6,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/tgosoul2019/addb/internal/addb"
+	"github.com/setrixdb/setrixdb/internal/addb"
 )
 
 func main() {

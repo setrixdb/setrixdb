@@ -11,9 +11,9 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/tgosoul2019/addb/internal/addb"
-	"github.com/tgosoul2019/addb/internal/cluster"
-	"github.com/tgosoul2019/addb/internal/simd"
+	"github.com/setrixdb/setrixdb/internal/addb"
+	"github.com/setrixdb/setrixdb/internal/cluster"
+	"github.com/setrixdb/setrixdb/internal/simd"
 )
 
 func buildWords(W int, density float64, seed int64) []uint64 {

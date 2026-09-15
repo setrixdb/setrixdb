@@ -13,7 +13,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/tgosoul2019/addb/internal/cluster"
+	"github.com/setrixdb/setrixdb/internal/cluster"
 )
 
 func main() {

@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/tgosoul2019/addb/internal/addb"
+	"github.com/setrixdb/setrixdb/internal/addb"
 )
 
 // makeWorkload gera um shard e um batch sintéticos para os benchmarks.

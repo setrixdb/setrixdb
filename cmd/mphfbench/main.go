@@ -19,8 +19,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tgosoul2019/addb/internal/addb"
-	"github.com/tgosoul2019/addb/internal/mphf"
+	"github.com/setrixdb/setrixdb/internal/addb"
+	"github.com/setrixdb/setrixdb/internal/mphf"
 )
 
 // makeKeys gera N chaves uint64 distintas (mix é bijeção ⇒ distintas).

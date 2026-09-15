@@ -24,9 +24,9 @@ import (
 	"github.com/RoaringBitmap/roaring"
 	"github.com/RoaringBitmap/roaring/roaring64"
 	"github.com/bits-and-blooms/bloom/v3"
-	"github.com/tgosoul2019/addb/internal/addb"
-	"github.com/tgosoul2019/addb/internal/mphf"
-	"github.com/tgosoul2019/addb/internal/simd"
+	"github.com/setrixdb/setrixdb/internal/addb"
+	"github.com/setrixdb/setrixdb/internal/mphf"
+	"github.com/setrixdb/setrixdb/internal/simd"
 )
 
 func mix(x uint64) uint64 {
