@@ -1,6 +1,6 @@
 //go:build cgo && amd64
 
-// Package simd expõe kernels vetorizados para o ADDB.
+// Package simd expõe kernels vetorizados para o SetrixDB.
 //
 // O kernel de interseção de bitsets é HÍBRIDO: o arquivo C é compilado portável
 // (sem exigir AVX-512) e escolhe EM RUNTIME entre a versão AVX-512

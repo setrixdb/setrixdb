@@ -1,6 +1,6 @@
-# Revisão de Arquitetura — ADDB
+# Revisão de Arquitetura — SetrixDB
 
-> Parecer honesto de **engenharia de software** e **engenharia de IA** sobre a spec do ADDB,
+> Parecer honesto de **engenharia de software** e **engenharia de IA** sobre a spec do SetrixDB,
 > pedido pelo Tião ("me responda honestamente"). Nada aqui é para agradar: é para não
 > deployarmos uma arquitetura que não fecha.
 
@@ -74,7 +74,7 @@ chave** = corrupção silenciosa.
 
 Comparação honesta com o "concorrente" que a spec ignora:
 
-| Operação | ADDB (scan) | `map[uint64]` / hash | Sorted + binária | Bitmap (roaring) |
+| Operação | SetrixDB (scan) | `map[uint64]` / hash | Sorted + binária | Bitmap (roaring) |
 |---|---|---|---|---|
 | Membership | **O(n)** ❌ | O(1) ✅ | O(log n) ✅ | O(1)–O(n/64) ✅ |
 | Interseção de conjuntos | O(n·m) ❌ | O(min) ✅ | **O(n+m) SIMD** ✅ | **O(n/64) rápido** ✅ |
@@ -103,7 +103,7 @@ não *zero-copy*.
 
 ### 🟡 5. Os casos de uso (IA) já têm solução melhor
 
-| Caso de uso da spec | Ferramenta correta | ADDB |
+| Caso de uso da spec | Ferramenta correta | SetrixDB |
 |---|---|---|
 | Pré-filtro de RAG | **Índice invertido / BM25** (postings = CSR!) | scan O(n) ❌ |
 | Memória de longo prazo p/ LLM de borda | **Hash set / KV** | scan O(n) ❌ |
@@ -124,7 +124,7 @@ use índice de **rune** (contador) em vez do byte offset do `range`.
 
 ## Onde isso **pode** vencer (e como eu estruturaria)
 
-O diferencial real de ADDB não é "banco", é **interseção de conjuntos em borda**:
+O diferencial real de SetrixDB não é "banco", é **interseção de conjuntos em borda**:
 
 1. **Representação:** arrays `uint64` **ordenados** por shard, ou **bitmaps Roaring**
    particionados por faixa de ID — ambos cache/banda-friendly e **SIMD-nativos**.

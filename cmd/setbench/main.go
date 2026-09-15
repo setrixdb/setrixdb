@@ -1,4 +1,4 @@
-// Command setbench compara as estratégias de CONSULTA do ADDB sobre o mesmo shard:
+// Command setbench compara as estratégias de CONSULTA do SetrixDB sobre o mesmo shard:
 //
 //  1. scan      — kernel atual (varredura O(n) por consulta)
 //  2. sorted    — shard ordenado + busca binária O(log n)
@@ -52,7 +52,7 @@ func main() {
 	shard := makeShard(*n, 42)
 	b := makeBatch(shard, *batch, 0.5, 7)
 
-	fmt.Printf("== ADDB setbench — n=%d batch=%d ==\n", *n, *batch)
+	fmt.Printf("== SetrixDB setbench — n=%d batch=%d ==\n", *n, *batch)
 
 	// 1) SCAN (atual)
 	t := time.Now()

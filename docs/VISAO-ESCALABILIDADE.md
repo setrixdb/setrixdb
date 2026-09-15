@@ -1,4 +1,4 @@
-# Visão de Escalabilidade — ADDB
+# Visão de Escalabilidade — SetrixDB
 
 > Alinhamento de direção (14/09). Objetivo: **crescer e escalar** SEM virar NoSQL nem vetorial.
 
@@ -9,7 +9,7 @@
 - ✅ **É um índice aritmético-determinístico em memória**: membership **exata** + operações de
   conjunto (interseção/união) sobre IDs `uint64`.
 - Papel: **pré-filtro / indexador de 1º estágio** — fica **na frente** de RAG, LLM de borda e
-  deduplicação. O banco/DB (se houver) é outro sistema; o ADDB só responde "existe? quais batem?".
+  deduplicação. O banco/DB (se houver) é outro sistema; o SetrixDB só responde "existe? quais batem?".
 
 ## 2. A unidade de escala: o Shard de IDs
 

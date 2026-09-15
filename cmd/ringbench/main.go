@@ -56,7 +56,7 @@ func main() {
 		ks[i] = r.Uint64()
 	}
 
-	fmt.Printf("== ADDB hash ring — churn (1M IDs, %d réplicas/nó) ==\n", *replicas)
+	fmt.Printf("== SetrixDB hash ring — churn (1M IDs, %d réplicas/nó) ==\n", *replicas)
 	fmt.Printf("%-7s %-11s %-11s %-12s %-14s\n", "nodes", "add→remap", "del→remap", "balance máx", "módulo add→remap")
 	for _, N := range []int{4, 8, 16, 64} {
 		ring := addb.NewRing(*replicas)

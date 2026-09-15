@@ -1,4 +1,4 @@
-# ADDB — Resultados consolidados (fonte do relatório final)
+# SetrixDB — Resultados consolidados (fonte do relatório final)
 
 > Todos os testes e resultados, desde o início, num só lugar. Ambiente de medição:
 > **Servidor de referência — 2 vCPU AMD EPYC 9J45 (Zen4, AVX-512), 3,8 GB RAM, Go 1.22.12 (+ gcc 11.4 cgo)**.
@@ -80,7 +80,7 @@ Varredura λ×ε (n=1M, bits/chave):
 
 | Estratégia | denso32 | aleat64 |
 |---|---|---|
-| sorted merge (ADDB) | 9,2 ms | 11,3 ms |
+| sorted merge (SetrixDB) | 9,2 ms | 11,3 ms |
 | Roaring (mercado) | 148 µs | 523 ms |
 | hash join (map) | 91,6 ms | 94,9 ms |
 | bitset AND (Go) | 29 µs | — |
@@ -180,7 +180,7 @@ Interseção (1M×1M): range **densa** → bitset AVX-512 **4 µs**; universo **
 | 4 nós locais (loopback), universo 2²⁶ | local 282 µs · distribuído **3,3 ms/consulta** (307 q/s) |
 | **VPS ↔ nó remoto** (VPN), universo 2²⁴, 2 shards | correto; **275 ms/consulta** (rede-bound: link WG ~2 MB/s) |
 
-**Veredito:** o ADDB escala **horizontalmente** — memória e compute distribuídos entre máquinas. O gargalo era a **rede** (transmitir a consulta a cada query); a solução implementada são **conjuntos ARMAZENADOS**: a interseção `A ∩ B` de dois sets já armazenados só carrega o **nome** na rede (cada nó faz o `AND` local), sem transmitir dados.
+**Veredito:** o SetrixDB escala **horizontalmente** — memória e compute distribuídos entre máquinas. O gargalo era a **rede** (transmitir a consulta a cada query); a solução implementada são **conjuntos ARMAZENADOS**: a interseção `A ∩ B` de dois sets já armazenados só carrega o **nome** na rede (cada nó faz o `AND` local), sem transmitir dados.
 
 | cenário | armazenado (só nomes) | ad-hoc (transmite a consulta) |
 |---|---|---|
@@ -195,7 +195,7 @@ Em link lento (VPN ~2 MB/s) o ganho explode — é o modo escalável do cluster.
 
 `internal/addb/ring.go` (consistent hash ring, membrosia dinâmica) + `cmd/ringbench`. 1M IDs, 2000 pontos virtuais/nó.
 
-| nós | add→remap (ADDB) | balance máx | módulo (add→remap) |
+| nós | add→remap (SetrixDB) | balance máx | módulo (add→remap) |
 |---|---|---|---|
 | 4 | 18% (ideal 20%) | 23% (ideal 25%) | 80% |
 | 8 | 8% (ideal 11%) | 15% (ideal 12%) | 89% |

@@ -1,10 +1,10 @@
-# Arquitetura — ADDB
+# Arquitetura — SetrixDB
 
 Detalhamento técnico do **Arithmetic Database**, conforme a especificação do Tião.
 
 ## 1. Visão geral
 
-ADDB abandona os pilares tradicionais de um banco (relações, índices B-tree,
+SetrixDB abandona os pilares tradicionais de um banco (relações, índices B-tree,
 hashing de strings em runtime, vetores) e aposta em **uma única primitiva**:
 a **aritmética determinística sobre inteiros de 64 bits**.
 

@@ -1,4 +1,4 @@
-// Command shardbench — mede a escala horizontal do ADDB: particiona o espaço
+// Command shardbench — mede a escala horizontal do SetrixDB: particiona o espaço
 // de IDs em N shards (ranges contíguos, cada um um bitset denso) e compara a
 // interseção serial vs. paralela.
 //
@@ -18,7 +18,7 @@ func main() {
 	const universe = uint64(1) << 32 // 4.29 bilhões de IDs
 	const keys = 4_000_000
 
-	fmt.Printf("== ADDB sharding — universo 2^32, keys=%d, %d CPUs ==\n\n",
+	fmt.Printf("== SetrixDB sharding — universo 2^32, keys=%d, %d CPUs ==\n\n",
 		keys, runtime.GOMAXPROCS(0))
 	fmt.Printf("%-8s %12s %12s %12s\n", "shards", "mem total", "intersec ser", "intersec par")
 	fmt.Println("--------------------------------------------------------")

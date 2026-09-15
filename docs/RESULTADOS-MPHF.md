@@ -1,4 +1,4 @@
-# Resultados medidos — MPHF (CHD) para o dicionário do ADDB
+# Resultados medidos — MPHF (CHD) para o dicionário do SetrixDB
 
 > Números reais, medidos nesta VPS em **2026-09-14**. Hardware: **2 vCPU** (AMD EPYC
 > 9J45), Go **1.22.12**. Código: `internal/mphf/` (CHD escrito do zero) + `cmd/mphfbench`.
@@ -50,7 +50,7 @@ O MPHF (CHD) construído sobre **50.000.000 de chaves**:
 
 1. **O MPHF resolve o problema do ID único** que a spec tinha: 0 colisão, ID de 32 bits (50M < 2³²), e **18× menos memória** que `map` / **4,7× menos** que o array cru de `uint64`.
 2. **MPHF não é filtro de membership.** Cerca de 90–95% das chaves de fora caem num slot ocupado (≈ load factor). Para membership exata, o dicionário **confere o termo** no índice devolvido — 1 comparação. Isso é o desenho correto (dicionário = MPHF + termos).
-3. **A consulta do ADDB não deve ser varredura.** Mesmo com MPHF no ID, a busca por *shard* tem de ser por representação ordenada/bitmap — o scan segue sendo O(n).
+3. **A consulta do SetrixDB não deve ser varredura.** Mesmo com MPHF no ID, a busca por *shard* tem de ser por representação ordenada/bitmap — o scan segue sendo O(n).
 4. **Custo/benefício do G:** a maior parte dos bits é o array de deslocamento (11 bits/bucket). Implementações de produção (BDZ/PTHash) chegam a 2–3 bits/chave comprimindo/evitando esse array inteiro — **próximo alvo de otimização**, se valer.
 
 ## Reproduzir

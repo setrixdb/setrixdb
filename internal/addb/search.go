@@ -1,4 +1,4 @@
-// Package addb implementa o núcleo do ADDB — Arithmetic Database.
+// Package addb implementa o núcleo do SetrixDB — Arithmetic Database.
 //
 // Princípios: banco em memória, não-relacional, não-vetorial, puramente
 // aritmético. A primitiva central é a igualdade entre inteiros uint64,
@@ -12,7 +12,7 @@ import (
 	"unsafe"
 )
 
-// Shard é um bloco contíguo de IDs em RAM. É a unidade de armazenamento do ADDB.
+// Shard é um bloco contíguo de IDs em RAM. É a unidade de armazenamento do SetrixDB.
 type Shard struct {
 	IDs []uint64
 }

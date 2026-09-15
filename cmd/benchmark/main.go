@@ -1,4 +1,4 @@
-// Command benchmark mede o desempenho do ADDB em ops/segundo.
+// Command benchmark mede o desempenho do SetrixDB em ops/segundo.
 //
 // Gera um shard sintético, monta um batch de consultas e mede:
 //   - buscas/s      (chamadas completas a ParallelSearchEngine)
@@ -59,7 +59,7 @@ func main() {
 	searchesPerSec := float64(*iters) / secs
 	queriesPerSec := searchesPerSec * float64(*batchSize)
 
-	fmt.Printf("ADDB — benchmark de busca paralela\n")
+	fmt.Printf("SetrixDB — benchmark de busca paralela\n")
 	fmt.Printf("  shard      : %d IDs (%.1f MiB)\n", *shardSize, float64(*shardSize*8)/(1024*1024))
 	fmt.Printf("  batch      : %d consultas (hit rate %.0f%%)\n", *batchSize, *hitRate*100)
 	fmt.Printf("  iterações  : %d\n", *iters)

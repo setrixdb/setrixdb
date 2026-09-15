@@ -4,7 +4,7 @@ package addb
 const PrimeBase uint64 = 31
 
 // ComputeDeterministicID calcula o ID numérico escalar (uint64) de uma string
-// UTF-8 pelo mapeamento posicional determinístico do ADDB:
+// UTF-8 pelo mapeamento posicional determinístico do SetrixDB:
 //
 //	ID = Σ_{i=0}^{L-1} ( UTF8(c_i) + i + 1 ) · B^i   (mod 2^64),  B = PrimeBase
 //

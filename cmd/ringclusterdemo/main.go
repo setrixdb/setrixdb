@@ -47,7 +47,7 @@ func main() {
 	flag.Parse()
 
 	W := *universe / 64
-	fmt.Printf("== ADDB ring+cluster — universo 2^%d, %d shards, %d nós, %d réplicas ==\n\n",
+	fmt.Printf("== SetrixDB ring+cluster — universo 2^%d, %d shards, %d nós, %d réplicas ==\n\n",
 		log2(*universe), *shards, *nnodes, *replicas)
 
 	// nós locais

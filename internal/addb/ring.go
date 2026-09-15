@@ -6,7 +6,7 @@ import (
 )
 
 // Ring é um Consistent Hash Ring: roteia IDs uint64 para nós do cluster sem
-// re-hash total quando nós entram ou saem. Base da topologia distribuída do ADDB.
+// re-hash total quando nós entram ou saem. Base da topologia distribuída do SetrixDB.
 type Ring struct {
 	// replicas é o número de pontos virtuais por nó (melhora o balanceamento).
 	replicas int
