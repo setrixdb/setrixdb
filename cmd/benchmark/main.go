@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Command benchmark mede o desempenho do SetrixDB em ops/segundo.
 //
 // Gera um shard sintético, monta um batch de consultas e mede:

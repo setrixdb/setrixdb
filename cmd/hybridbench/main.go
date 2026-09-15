@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Command hybridbench — demonstra a "parede de memória" do bitset denso e onde
 // entra o híbrido denso (bitset AVX-512) + esparso (SparseSet/Roaring).
 //

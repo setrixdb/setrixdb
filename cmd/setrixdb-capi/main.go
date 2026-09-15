@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Command setrixdb-capi — ABI C (FFI) do SetrixDB para embutir em C/C++/Rust/Python.
 //
 // Compile como biblioteca compartilhada:
@@ -24,7 +27,7 @@ import (
 
 var (
 	mu   sync.Mutex
-	reg  = map[int64]*setrixdb.Set{}
+	reg        = map[int64]*setrixdb.Set{}
 	next int64 = 1
 )
 

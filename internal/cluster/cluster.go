@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Package cluster implementa a camada over-the-wire do SetrixDB: nós que servem
 // SHARDS (fatias do bitset global) por TCP e um coordenador que agrega.
 // Protocolo binário mínimo, zero-copy (sem dependências).

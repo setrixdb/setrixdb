@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Command setrixdb-server — API remota (HTTP/JSON) do SetrixDB.
 //
 // Sobe um servidor que mantém conjuntos nomeados em memória e expõe as operações

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 /* Exemplo de uso da C ABI do SetrixDB.
  *
  * Compile a biblioteca primeiro:

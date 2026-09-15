@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Command vsbench — head-to-head do SetrixDB contra estruturas de mercado.
 //
 // MEMBERSHIP sobre N chaves uint64:
@@ -8,7 +11,7 @@
 // INTERSEÇÃO de dois conjuntos (A,B), em 2 cenários:
 //   - denso32 : IDs 0..2N (como no SetrixDB real: IDs do MPHF, densos/32-bit)
 //   - aleat64 : uint64 aleatórios (pior caso p/ bitmaps)
-//   estratégias: sorted merge (SetrixDB) · Roaring · hash join (map)
+//     estratégias: sorted merge (SetrixDB) · Roaring · hash join (map)
 //
 // Uso: go run ./cmd/vsbench -n 1000000
 package main
@@ -36,7 +39,12 @@ func mix(x uint64) uint64 {
 	return x ^ (x >> 31)
 }
 
-func heap() uint64 { runtime.GC(); var m runtime.MemStats; runtime.ReadMemStats(&m); return m.HeapAlloc }
+func heap() uint64 {
+	runtime.GC()
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return m.HeapAlloc
+}
 func d64(a, b uint64) int64 { return int64(b) - int64(a) }
 
 func uniqueU64(a []uint64) []uint64 {

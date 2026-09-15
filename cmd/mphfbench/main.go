@@ -1,10 +1,13 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 // Command mphfbench constrói um MPHF (CHD) sobre N chaves e mede, com números:
 //
-//	- colisões (deve ser 0, por construção)
-//	- bits/chave da estrutura
-//	- tempo de build
-//	- ns/op e ops/s de lookup (1 thread e paralelo)
-//	- comparação com o kernel de SCAN atual (SetrixDB) e com map[uint64]uint32
+//   - colisões (deve ser 0, por construção)
+//   - bits/chave da estrutura
+//   - tempo de build
+//   - ns/op e ops/s de lookup (1 thread e paralelo)
+//   - comparação com o kernel de SCAN atual (SetrixDB) e com map[uint64]uint32
 //
 // Uso:
 //

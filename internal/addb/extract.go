@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Thiago Silva
+// SPDX-License-Identifier: Apache-2.0
+
 package addb
 
 // ExtractSet devolve, em ordem crescente, todas as posições de bit setadas (1)
