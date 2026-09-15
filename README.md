@@ -205,11 +205,46 @@ O benchmark mede **buscas por segundo** (`buscas/s`) e **consultas por segundo**
 - [ ] Benchmarks de energia (J/busca) em SBC.
 - [ ] Testes de escala em nuvem (cluster real multi-nó).
 
-## 9. Contribuindo
+## 9. CLI
+
+```bash
+go build -o setrixdb ./cmd/setrixdb
+
+# construir um conjunto a partir de IDs (um por linha, ou CSV)
+./setrixdb build -o nike.sxset -input nike.txt
+
+# info / pertencimento
+./setrixdb info nike.sxset
+./setrixdb has  nike.sxset 12345 67890
+
+# interseção de N conjuntos (o "E" de uma busca facetada)
+./setrixdb intersect vermelho.sxset tam_M.sxset nike.sxset --bench 500
+```
+
+Exemplo real (5 milhões de produtos): interseção de **4 conjuntos** (cor, tamanho, marca, estoque)
+→ **4,1 ms** na 1ª execução. Formato `.sxset` é binário e portátil.
+
+## 10. API (Go embarcável)
+
+```go
+import "github.com/setrixdb/setrixdb"
+
+vermelho := setrixdb.NewSet(1, 2, 3, 4, 5)
+tamM     := setrixdb.NewSet(3, 4, 6)
+
+res := setrixdb.Intersect(vermelho, tamM) // {3, 4}
+res.Len()   // 2
+res.Has(3)  // true
+```
+
+Também: `Index` (MPHF — ID denso), `Union`, `Filter`. A superfície pública é o **pacote raiz**
+`setrixdb`; os pacotes sob `internal/` **não** são importáveis por design.
+
+## 11. Contribuindo
 
 Veja [`CONTRIBUTING.md`](CONTRIBUTING.md) e [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 
-## 10. Licença
+## 12. Licença
 
 Licenciado sob a **Apache License 2.0** — veja [`LICENSE`](LICENSE) e [`NOTICE`](NOTICE).
 Copyright 2026 Thiago Silva.
