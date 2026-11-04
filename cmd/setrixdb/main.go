@@ -59,6 +59,8 @@ func main() {
 		err = cmdBench(args)
 	case "id":
 		err = cmdID(args)
+	case "keyer":
+		err = cmdKeyer(args)
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -80,9 +82,11 @@ func usage() {
   setrixdb has      FILE.sxset ID [ID ...]
   setrixdb intersect A.sxset B.sxset [C.sxset ...] [--list] [--bench N]
   setrixdb bench   [-n 1000000]
-  setrixdb id       "termo ou frase" ["outro ..."]
+  setrixdb id       "termo ou frase" ["outro ..."]   (provisório: hash não injetivo)
+  setrixdb keyer    FILE_DE_TERMOS ["termo" ...]     (IDs exatos: MPHF + conferência)
 
 Input de build: um ID uint64 por linha (ou separado por vírgula/espaço).
+Input de keyer: um termo por linha (linhas vazias e iniciadas por "#" são ignoradas).
 `)
 }
 
@@ -295,8 +299,90 @@ func cmdID(args []string) error {
 		id := addb.ComputeDeterministicID(t)
 		fmt.Printf("  %-30q -> %d\n", t, id)
 	}
-	fmt.Println("\n(o ID é o mesmo para a mesma string — palavras e frases com espaço são tratadas igual)")
+	fmt.Println("\n(provisório: este hash posicional NÃO é injetivo — termos distintos podem")
+	fmt.Println(" receber o mesmo ID. Para IDs exatos use `setrixdb keyer`. Ver docs/REVISAO-ARQUITETURA.md)")
 	return nil
+}
+
+// cmdKeyer indexa um vocabulário (um termo por linha) num Keyer — o caminho
+// exato de termo -> ID (MPHF + conferência), que substitui o hash posicional.
+func cmdKeyer(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("use: setrixdb keyer ARQUIVO_DE_TERMOS [termo ...]")
+	}
+	termos, err := readTerms(args[0])
+	if err != nil {
+		return err
+	}
+	if len(termos) == 0 {
+		return fmt.Errorf("arquivo %s sem termos", args[0])
+	}
+
+	t0 := time.Now()
+	k, err := setrixdb.BuildKeyer(termos)
+	if err != nil {
+		return err
+	}
+	build := time.Since(t0)
+
+	fmt.Printf("SetrixDB — keyer (IDs exatos por termo)\n")
+	if k.BitsPerKey() == 0 {
+		fmt.Printf("  termos: %d · build: %s · índice: mapa direto (vocabulário pequeno)\n",
+			k.Len(), build.Round(time.Millisecond))
+	} else {
+		fmt.Printf("  termos: %d · build: %s · %.2f bits/termo · %d KiB de índice (MPHF)\n",
+			k.Len(), build.Round(time.Millisecond), k.BitsPerKey(), k.Bytes()/1024)
+	}
+	fmt.Printf("  desambiguações do hash de origem: %d\n", k.Colisoes())
+
+	alvos := args[1:]
+	if len(alvos) == 0 {
+		alvos = termos[:min(5, len(termos))]
+	}
+	for _, t := range alvos {
+		if id, ok := k.Lookup(t); ok {
+			fmt.Printf("  %-30q -> %d (exato)\n", t, id)
+			continue
+		}
+		fmt.Printf("  %-30q -> ausente\n", t)
+	}
+
+	// Mede o lookup em O(1) para dar o número honesto (não é estimativa).
+	n := 200_000
+	if len(alvos) > 0 {
+		i := 0
+		t1 := time.Now()
+		for j := 0; j < n; j++ {
+			_, _ = k.Lookup(alvos[i])
+			i++
+			if i == len(alvos) {
+				i = 0
+			}
+		}
+		fmt.Printf("  lookup: %s/consulta (média de %d consultas)\n",
+			time.Since(t1).Round(time.Nanosecond)/time.Duration(n), n)
+	}
+	return nil
+}
+
+// readTerms lê um termo por linha, ignorando vazias e comentários.
+func readTerms(path string) ([]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	var termos []string
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 1024*1024), 64*1024*1024)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		termos = append(termos, line)
+	}
+	return termos, sc.Err()
 }
 
 func cmdBench(args []string) error {

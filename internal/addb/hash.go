@@ -17,6 +17,12 @@ const PrimeBase uint64 = 31
 //
 // Observação: em Go, `range` sobre string itera por RUNE, mas o índice `i` é o
 // deslocamento em BYTES. A fórmula acima usa esse índice posicional do byte.
+//
+// Deprecated: a fórmula não é injetiva — ela reduz a string a um uint64 mod 2^64
+// e pode dar o mesmo ID para termos distintos (medido: 78% de colisão em 200 mil
+// tokens curtos). Mantida como hash de origem e por compatibilidade de leitura.
+// Para mapear termos em IDs exatos use setrixdb.Keyer (MPHF + conferência do
+// termo), que garante 1 ID por termo. Ver docs/REVISAO-ARQUITETURA.md item 1.
 func ComputeDeterministicID(term string) uint64 {
 	var hash uint64 = 0
 	var currentPower uint64 = 1
