@@ -31,6 +31,31 @@ Integração no caminho do produto do que a v0.1.0 entregou apenas em benchmarks
 - Benchmarks reproduzíveis em `bench/simd_path_bench_test.go` (merge x denso,
   kernel x escalar, API pública antes x depois).
 
+### Added (fatia 3 — híbrido denso/esparso por shard em runtime)
+
+- **`ShardedBitset` escolhe a representação por shard** pelo custo de memória
+  (`Finalize`, decidido automaticamente na primeira consulta): bitset denso para
+  densidade alta, `SparseSet` para densidade baixa — virada em `ShardBits/64`
+  IDs (8 bytes por ID x bitset fixo). Antes era denso-only, então um shard com
+  100 IDs custava o universo inteiro.
+- **Dispatch por par de shards** na interseção: denso×denso usa o kernel
+  vetorizado, esparso×esparso usa merge two-pointer, e misto usa `Test` do
+  bitset por ID do esparso — o resultado é o mesmo nos quatro casos.
+- **`Modes()`** (diagnóstico: "dense"/"sparse" por shard), `ShardedBitset.Has`
+  passou a funcionar nos dois modos e `Words(sh)` devolve `nil` em shard esparso.
+- Escrita depois de `Finalize` (`Set`) volta o shard tocado para denso — o
+  contrato antigo (escrever e consultar sem cerimônia) continua valendo.
+- **Shard vazio custa zero** (antes alocava o bitset inteiro).
+
+### Medido (fatia 3)
+
+Mesmo universo (1 Mi) e mesmos IDs, 8 shards, AVX-512 real:
+
+| caso | denso-only (antes) | híbrido (depois) | ganho |
+|---|---|---|---|
+| consulta em dados esparsos (100 IDs/shard) | 5,4 µs | 1,9 µs | **2,8×** |
+| memória de 800 IDs em 1 Mi de universo | 131.136 B | 6.400 B | **20,5× menos** |
+
 ### Added (fatia 2 — cluster robusto)
 
 - `Options` + `DefaultOptions()` (dial 3 s, IO 10 s, 2 reconexões) e
