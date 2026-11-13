@@ -4,11 +4,10 @@
 package simd
 
 import (
+	"math/bits"
 	"math/rand"
 	"reflect"
 	"testing"
-
-	"github.com/setrixdb/setrixdb/internal/addb"
 )
 
 func TestExtractSetMatchesScalar(t *testing.T) {
@@ -18,10 +17,25 @@ func TestExtractSetMatchesScalar(t *testing.T) {
 		words[i] = rng.Uint64()
 	}
 	got := ExtractSet(words)
-	want := addb.ExtractSet(words)
+	want := scalarExtract(words)
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("simd.ExtractSet diverge do escalar:\n got=%v\n want=%v", got[:min(20, len(got))], want[:min(20, len(want))])
 	}
+}
+
+// scalarExtract é a referência escalar do kernel de extração. Fica aqui (e não
+// em internal/addb) porque addb passou a importar este pacote na v1.1 — um
+// import de volta criaria ciclo de teste.
+func scalarExtract(words []uint64) []uint64 {
+	var positions []uint64
+	for i, word := range words {
+		for word != 0 {
+			j := bits.TrailingZeros64(word)
+			positions = append(positions, uint64(i*64+j))
+			word &= word - 1
+		}
+	}
+	return positions
 }
 
 func min(a, b int) int {
@@ -45,7 +59,7 @@ func BenchmarkExtractSetScalar(b *testing.B) {
 	w := denseWords()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = addb.ExtractSet(w)
+		_ = scalarExtract(w)
 	}
 }
 

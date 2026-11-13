@@ -16,6 +16,8 @@ package simd
 #include <stdint.h>
 long long addb_and_popcount(const uint64_t* a, const uint64_t* b, long long n);
 int addb_and_popcount_tier(void);
+void addb_and(const uint64_t* a, const uint64_t* b, uint64_t* dst, long long n);
+long long addb_popcount(const uint64_t* a, long long n);
 */
 import "C"
 
@@ -42,4 +44,33 @@ func Name() string {
 		return "avx512 (hibrido)"
 	}
 	return "scalar (hibrido)"
+}
+
+// And grava em dst o AND palavra a palavra de a e b; devolve quantas palavras
+// foram escritas (o menor dos três comprimentos — palavra ausente é zero).
+func And(dst, a, b []uint64) int {
+	n := len(a)
+	if len(b) < n {
+		n = len(b)
+	}
+	if len(dst) < n {
+		n = len(dst)
+	}
+	if n == 0 {
+		return 0
+	}
+	C.addb_and(
+		(*C.uint64_t)(unsafe.Pointer(&a[0])),
+		(*C.uint64_t)(unsafe.Pointer(&b[0])),
+		(*C.uint64_t)(unsafe.Pointer(&dst[0])),
+		C.longlong(n))
+	return n
+}
+
+// Popcount devolve quantos bits estão setados — pelo kernel vetorial.
+func Popcount(words []uint64) int64 {
+	if len(words) == 0 {
+		return 0
+	}
+	return int64(C.addb_popcount((*C.uint64_t)(unsafe.Pointer(&words[0])), C.longlong(len(words))))
 }
