@@ -31,6 +31,33 @@ Integração no caminho do produto do que a v0.1.0 entregou apenas em benchmarks
 - Benchmarks reproduzíveis em `bench/simd_path_bench_test.go` (merge x denso,
   kernel x escalar, API pública antes x depois).
 
+### Added (fatia 2 — cluster robusto)
+
+- `Options` + `DefaultOptions()` (dial 3 s, IO 10 s, 2 reconexões) e
+  `DialWithOptions` / `NewShardedClusterWithOptions`.
+- **`ErrPeerDown`**: nó que não responde depois das reconexões devolve erro
+  sentinela (dá para distinguir de erro de protocolo) e o peer continua marcado
+  em `Health()` — `Coordinator.Health()` e `ShardedCluster.Health()`.
+- `Node.SetCount()` (diagnóstico) e `Node.Close()` agora derruba as conexões
+  abertas — é o que permite testar nó caindo de verdade.
+- `Node.IdleTimeout` (padrão 10 min): conexão ociosa é fechada em vez de deixar
+  goroutine pendurada.
+- Validação do nome do conjunto antes de ir para a rede (vazio ou > 65535 bytes
+  era truncado em silêncio) e da consulta curta demais (era panic/leitura fora
+  da faixa).
+
+### Fixed (fatia 2 — cluster robusto)
+
+- **Operação pendurada sem limite**: `net.Dial` sem timeout e `readMsg` sem
+  deadline deixavam a query travada para sempre com nó morto. Agora há deadline
+  por operação (`DialTimeout`/`IOTimeout`) e reconexão com backoff; as três
+  operações do protocolo são idempotentes, então reenviar é seguro.
+- **Goroutine órfã no `ShardedCluster.gather`**: abortava no primeiro erro
+  deixando as outras respostas sem drenar o canal; agora drena tudo e devolve o
+  primeiro erro.
+- Protocolo malformado no nó (nome truncado) agora encerra a conexão em vez de
+  continuar lendo um stream desalinhado.
+
 ### Fixed
 
 - **`simd.ExtractSet` alocava 64 posições por palavra** (máximo teórico) e

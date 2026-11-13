@@ -5,7 +5,8 @@ package cluster
 
 import (
 	"encoding/binary"
-	"net"
+	"errors"
+	"fmt"
 
 	"github.com/setrixdb/setrixdb/internal/addb"
 )
@@ -18,30 +19,53 @@ type ShardedCluster struct {
 	Shards int
 	ring   *addb.Ring
 	owners []string // shard -> endereço do nó
-	conns  map[string]net.Conn
+	peers  map[string]*PeerConn
+	opt    Options
 }
 
 // NewShardedCluster monta o cluster: registra os nós no anel, atribui os shards
 // e conecta. replicas = pontos virtuais por nó.
 func NewShardedCluster(addrs []string, W, shards, replicas int) (*ShardedCluster, error) {
+	return NewShardedClusterWithOptions(addrs, W, shards, replicas, DefaultOptions())
+}
+
+// NewShardedClusterWithOptions — como NewShardedCluster, com limites explícitos
+// de dial/IO/reconexão.
+func NewShardedClusterWithOptions(addrs []string, W, shards, replicas int, opt Options) (*ShardedCluster, error) {
+	if len(addrs) == 0 {
+		return nil, errors.New("cluster: nenhum endereço de nó")
+	}
+	if shards <= 0 {
+		return nil, fmt.Errorf("cluster: shards deve ser > 0 (%d)", shards)
+	}
+	opt = opt.withDefaults()
 	ring := addb.NewRing(replicas)
 	for _, a := range addrs {
 		ring.AddNode(a)
 	}
-	sc := &ShardedCluster{W: W, Shards: shards, ring: ring, conns: map[string]net.Conn{}}
+	sc := &ShardedCluster{W: W, Shards: shards, ring: ring, peers: map[string]*PeerConn{}, opt: opt}
 	sc.owners = make([]string, shards)
 	for s := 0; s < shards; s++ {
 		sc.owners[s], _ = ring.Route(uint64(s))
 	}
 	for _, a := range addrs {
-		c, err := net.Dial("tcp", a)
-		if err != nil {
+		p := newPeerConn(a, opt)
+		if err := p.Connect(); err != nil {
 			sc.Close()
 			return nil, err
 		}
-		sc.conns[a] = c
+		sc.peers[a] = p
 	}
 	return sc, nil
+}
+
+// Health — endereço → está fora? (última operação falhou).
+func (sc *ShardedCluster) Health() map[string]bool {
+	out := make(map[string]bool, len(sc.peers))
+	for a, p := range sc.peers {
+		out[a] = p.Down()
+	}
+	return out
 }
 
 // Owners devolve o dono (endereço) de cada shard.
@@ -67,15 +91,15 @@ func (sc *ShardedCluster) nodeSlice(global []uint64, node string) []uint64 {
 
 // LoadSet envia a cada nó a concatenação das faixas de `global` dos seus shards.
 func (sc *ShardedCluster) LoadSet(name string, global []uint64) error {
-	for node, conn := range sc.conns {
+	if err := validateName(name); err != nil {
+		return err
+	}
+	for node, peer := range sc.peers {
 		slice := sc.nodeSlice(global, node)
 		payload := []byte{opLoadSet}
 		payload = writeName(payload, name)
 		payload = append(payload, bytesView(slice)...)
-		if err := writeMsg(conn, payload); err != nil {
-			return err
-		}
-		if _, err := readMsg(conn); err != nil { // ack
+		if _, err := peer.roundTrip(payload); err != nil { // inclui o ack
 			return err
 		}
 	}
@@ -88,29 +112,38 @@ func (sc *ShardedCluster) gather(send func(node string) []byte) (uint64, error) 
 		n   uint64
 		err error
 	}
-	ch := make(chan res, len(sc.conns))
-	for node, conn := range sc.conns {
-		go func(node string, conn net.Conn) {
+	ch := make(chan res, len(sc.peers))
+	for node, peer := range sc.peers {
+		go func(node string, peer *PeerConn) {
 			payload := send(node)
-			if err := writeMsg(conn, payload); err != nil {
-				ch <- res{0, err}
-				return
-			}
-			resp, err := readMsg(conn)
+			resp, err := peer.roundTrip(payload)
 			if err != nil {
 				ch <- res{0, err}
 				return
 			}
+			if len(resp) < 8 {
+				ch <- res{0, fmt.Errorf("cluster: resposta curta (%d bytes) de %s", len(resp), peer.Addr())}
+				return
+			}
 			ch <- res{binary.LittleEndian.Uint64(resp), nil}
-		}(node, conn)
+		}(node, peer)
 	}
 	var total uint64
-	for range sc.conns {
+	var firstErr error
+	for range sc.peers {
 		r := <-ch
 		if r.err != nil {
-			return 0, r.err
+			// Não aborta na primeira falha: as outras goroutines precisam
+			// drenar o canal (senão vazam com o canal cheio).
+			if firstErr == nil {
+				firstErr = r.err
+			}
+			continue
 		}
 		total += r.n
+	}
+	if firstErr != nil {
+		return 0, firstErr
 	}
 	return total, nil
 }
@@ -138,9 +171,9 @@ func (sc *ShardedCluster) IntersectQuery(name string, query []uint64) (uint64, e
 
 // Close fecha as conexões.
 func (sc *ShardedCluster) Close() {
-	for _, c := range sc.conns {
-		if c != nil {
-			c.Close()
+	for _, p := range sc.peers {
+		if p != nil {
+			p.Close()
 		}
 	}
 }
