@@ -39,3 +39,62 @@ long long addb_and_popcount(const uint64_t *a, const uint64_t *b, long long n) {
     if (tier < 0) tier = addb_and_popcount_tier();
     return tier == 1 ? and_popcount_avx512(a, b, n) : and_popcount_scalar(a, b, n);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AND vetorizado (dst = a & b). Usado pelo caminho denso do produto
+// (addb.Bitset.Intersect e a seleção denso/esparso de setrixdb.Intersect).
+// ─────────────────────────────────────────────────────────────────────────────
+
+__attribute__((target("avx512f")))
+static void and_avx512(const uint64_t *a, const uint64_t *b, uint64_t *dst, long long n) {
+    long long i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m512i va = _mm512_loadu_si512((const void *)(a + i));
+        __m512i vb = _mm512_loadu_si512((const void *)(b + i));
+        _mm512_storeu_si512((void *)(dst + i), _mm512_and_si512(va, vb));
+    }
+    for (; i < n; i++) dst[i] = a[i] & b[i];
+}
+
+static void and_scalar(const uint64_t *a, const uint64_t *b, uint64_t *dst, long long n) {
+    for (long long i = 0; i < n; i++) dst[i] = a[i] & b[i];
+}
+
+// Dispatcher do AND: b pode ser menor que a (o resto de dst fica com a).
+void addb_and(const uint64_t *a, const uint64_t *b, uint64_t *dst, long long n) {
+    static int tier = -1;
+    if (tier < 0) tier = addb_and_popcount_tier();
+    if (tier == 1) and_avx512(a, b, dst, n);
+    else and_scalar(a, b, dst, n);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Popcount de um bitset. Serve para dimensionar a saída do extract com
+// exatidão, em vez de alocar 64 posições por palavra (desperdício que tornava o
+// caminho denso mais lento que o merge — medido na v1.1).
+// ─────────────────────────────────────────────────────────────────────────────
+
+__attribute__((target("avx512f,avx512vpopcntdq")))
+static long long popcount_avx512(const uint64_t *a, long long n) {
+    __m512i acc = _mm512_setzero_si512();
+    long long i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m512i va = _mm512_loadu_si512((const void *)(a + i));
+        acc = _mm512_add_epi64(acc, _mm512_popcnt_epi64(va));
+    }
+    long long s = (long long)_mm512_reduce_add_epi64(acc);
+    for (; i < n; i++) s += __builtin_popcountll(a[i]);
+    return s;
+}
+
+static long long popcount_scalar(const uint64_t *a, long long n) {
+    long long s = 0;
+    for (long long i = 0; i < n; i++) s += __builtin_popcountll(a[i]);
+    return s;
+}
+
+long long addb_popcount(const uint64_t *a, long long n) {
+    static int tier = -1;
+    if (tier < 0) tier = addb_and_popcount_tier();
+    return tier == 1 ? popcount_avx512(a, n) : popcount_scalar(a, n);
+}

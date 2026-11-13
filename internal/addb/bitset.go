@@ -3,7 +3,7 @@
 
 package addb
 
-import "math/bits"
+import "github.com/setrixdb/setrixdb/internal/simd"
 
 // Bitset representa um conjunto de IDs densos em [0, maxID) — a forma natural
 // depois que o MPHF transforma termos em IDs em [0, N). Interseção = AND bit a bit.
@@ -22,18 +22,28 @@ func (b *Bitset) Set(id uint64) { b.Words[id>>6] |= 1 << (id & 63) }
 // Test informa se o ID está no conjunto.
 func (b *Bitset) Test(id uint64) bool { return b.Words[id>>6]&(1<<(id&63)) != 0 }
 
-// AndPopcount devolve |A ∩ B| (popcount do AND), versão escalar em Go.
+// AndPopcount devolve |A ∩ B| (popcount do AND). Usa o kernel vetorizado
+// (AVX-512 quando a CPU tem, escalar caso contrário) — este é o caminho quente
+// da contagem de interseção (ShardedBitset.IntersectCount).
 func (b *Bitset) AndPopcount(o *Bitset) int64 {
+	return simd.AndPopcount(b.Words, o.Words)
+}
+
+// Intersect devolve um novo bitset com A ∩ B (AND palavra a palavra pelo
+// kernel). O comprimento é o menor dos dois: palavra ausente é conjunto vazio.
+func (b *Bitset) Intersect(o *Bitset) *Bitset {
 	n := len(b.Words)
 	if len(o.Words) < n {
 		n = len(o.Words)
 	}
-	var c int64
-	for i := 0; i < n; i++ {
-		c += int64(bits.OnesCount64(b.Words[i] & o.Words[i]))
-	}
-	return c
+	out := &Bitset{Words: make([]uint64, n)}
+	simd.And(out.Words, b.Words, o.Words)
+	return out
 }
+
+// Extract devolve as posições (IDs) dos bits setados, em ordem crescente, pelo
+// kernel de extração vetorizada.
+func (b *Bitset) Extract() []uint64 { return simd.ExtractSet(b.Words) }
 
 // Bytes devolve o tamanho em bytes.
 func (b *Bitset) Bytes() int { return len(b.Words) * 8 }

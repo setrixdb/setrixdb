@@ -5,6 +5,54 @@ Todas as mudanças relevantes deste projeto são documentadas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [Não lançado] — v1.1 (em andamento)
+
+Integração no caminho do produto do que a v0.1.0 entregou apenas em benchmarks
+(issue #16). Primeira fatia: **kernel SIMD no hot path**.
+
+### Changed
+
+- **`addb.Bitset.AndPopcount` passa a usar o kernel vetorizado** (AVX-512 com
+  dispatch em runtime; escalar no fallback `CGO_ENABLED=0`/arm64) em vez do laço
+  escalar em Go. É o caminho quente de `ShardedBitset.IntersectCount`.
+- **`addb.ExtractSet` passa a usar o kernel de extração vetorizada** — antes a
+  versão vetorizada era exercitada só por teste.
+- **`setrixdb.Intersect` escolhe o caminho por custo** (`densePlan`): representação
+  densa + AND vetorizado quando os conjuntos ocupam pouco universo; merge em
+  listas ordenadas quando são esparsos. Mesmo resultado nos dois caminhos
+  (teste de paridade), sem opção para o usuário configurar.
+
+### Added
+
+- `simd.And` (AND palavra a palavra) e `simd.Popcount`, ambos com dispatch
+  AVX-512/escalar em runtime.
+- `addb.Bitset.Intersect` / `addb.Bitset.Extract` e `addb.IntersectIDs`
+  (interseção densa de N conjuntos).
+- Benchmarks reproduzíveis em `bench/simd_path_bench_test.go` (merge x denso,
+  kernel x escalar, API pública antes x depois).
+
+### Fixed
+
+- **`simd.ExtractSet` alocava 64 posições por palavra** (máximo teórico) e
+  gastava mais na alocação que na extração: com isso o caminho denso chegava a
+  ser mais lento que o merge. Agora dimensiona pelo popcount real.
+
+### Medido
+
+Máquina com AVX-512 real (AMD EPYC 9J45, 2 vCPU, container `golang:1.25`),
+`go test -run XXX -bench ... -benchtime 300ms -count 3 ./bench/`:
+
+| benchmark | antes | depois | ganho |
+|---|---|---|---|
+| `AndPopcount` 128 KB de palavras (escalar → kernel) | 8,9 µs | 1,45 µs | **6,1×** |
+| `Intersect` API pública, dados densos (1 Mi de universo, 200 k IDs × 2) | 2,28 ms | 0,81 ms | **2,8×** |
+| `Intersect` caminho denso isolado | 1,93 ms (merge) | 0,55 ms | **3,5×** |
+| `Intersect` API pública, dados esparsos | 9,8 µs | 9,8 µs | igual (merge preservado) |
+
+Ressalva registrada: o runner do GitHub Actions **não tem AVX-512**, então o CI
+prova o caminho escalar/genérico; o tier vetorial é provado nesta máquina (e por
+`TestKernelTier`, que loga o kernel efetivo).
+
 ## [0.1.0]
 
 Primeira versão pública (**alpha / pre-release**). Ver as *release notes* para escopo, itens
