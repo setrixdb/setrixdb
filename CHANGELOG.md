@@ -5,10 +5,15 @@ Todas as mudanças relevantes deste projeto são documentadas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
-## [Não lançado] — v1.1 (em andamento)
+## [0.1.1] — 2026-11-23 *(preparado; tag e release aguardam autorização)*
 
-Integração no caminho do produto do que a v0.1.0 entregou apenas em benchmarks
-(issue #16). Primeira fatia: **kernel SIMD no hot path**.
+Segunda versão pública (**alpha / pre-release**). Fecha a issue #16: o que a
+v0.1.0 entregou apenas em benchmark passa a rodar **no caminho do produto** —
+kernel vetorizado no *hot path*, representação híbrida denso/esparso escolhida
+por shard em runtime e cluster com timeouts, reconexão e peer morto sem pendurar.
+**22 commits** desde a `v0.1.0` (15/09), nas fatias 1–3 documentadas abaixo.
+
+Primeira fatia: **kernel SIMD no hot path**.
 
 ### Changed
 
@@ -104,6 +109,33 @@ Máquina com AVX-512 real (AMD EPYC 9J45, 2 vCPU, container `golang:1.25`),
 Ressalva registrada: o runner do GitHub Actions **não tem AVX-512**, então o CI
 prova o caminho escalar/genérico; o tier vetorial é provado nesta máquina (e por
 `TestKernelTier`, que loga o kernel efetivo).
+
+### Added (keyer — ID exato por termo)
+
+- **`Keyer`**: ID **exato por termo** (MPHF + conferência do *bucket*) — o ID deixa
+  de depender da posição no arquivo e passa a ser estável entre execuções e
+  independente da ordem de inserção (`keyer.go`).
+- `ComputeDeterministicID` fica **depreciado** para conjuntos persistidos
+  (colisão posicional); continua disponível para IDs efêmeros/streaming.
+
+### Docs
+
+- `docs/RESULTADOS.md`: escala **10M+** com MovieLens 25M (facetas reais),
+  bitset x merge e memória por representação.
+- `ARQUITETURA.md` e `ESTRUTURA-CODIGO.md` realinhados ao estado atual (MPHF,
+  híbrido por shard, SIMD no hot path, cluster robusto).
+- `README.md`: tradução para inglês + badges (CI, Go Report Card, pkg.go.dev,
+  release) e título alinhado ao posicionamento (*arithmetic set engine*).
+- Exemplo público passa a usar `Keyer`; o kernel linear fica como material
+  didático.
+
+### Chore
+
+- Autoria e contato padronizados na identidade do projeto (`contato@setrixdb.com`,
+  `.mailmap`), cabeçalhos **SPDX** completos e remoção de menções
+  pessoais/internas.
+- CI: Dependabot semanal (`gomod` + `github-actions`) e bumps de
+  `actions/checkout` e `actions/setup-go`.
 
 ## [0.1.0]
 
