@@ -11,7 +11,7 @@ Segunda versão pública (**alpha / pre-release**). Fecha a issue #16: o que a
 v0.1.0 entregou apenas em benchmark passa a rodar **no caminho do produto** —
 kernel vetorizado no *hot path*, representação híbrida denso/esparso escolhida
 por shard em runtime e cluster com timeouts, reconexão e peer morto sem pendurar.
-**22 commits** desde a `v0.1.0` (15/09), nas fatias 1–3 documentadas abaixo.
+**24 commits** desde a `v0.1.0` (15/09), nas fatias 1–3 documentadas abaixo.
 
 Primeira fatia: **kernel SIMD no hot path**.
 
@@ -136,6 +136,12 @@ prova o caminho escalar/genérico; o tier vetorial é provado nesta máquina (e 
   pessoais/internas.
 - CI: Dependabot semanal (`gomod` + `github-actions`) e bumps de
   `actions/checkout` e `actions/setup-go`.
+
+### Dependencies
+
+- `github.com/bits-and-blooms/bloom/v3` **3.7.1 → 3.7.2** (#21) e o indireto
+  `github.com/bits-and-blooms/bitset` **1.24.2 → 1.24.4**. Bump de manutenção
+  (Dependabot), sem mudança de API pública.
 
 ## [0.1.0]
 
