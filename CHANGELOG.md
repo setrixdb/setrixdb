@@ -11,7 +11,9 @@ Segunda versão pública (**alpha / pre-release**). Fecha a issue #16: o que a
 v0.1.0 entregou apenas em benchmark passa a rodar **no caminho do produto** —
 kernel vetorizado no *hot path*, representação híbrida denso/esparso escolhida
 por shard em runtime e cluster com timeouts, reconexão e peer morto sem pendurar.
-**24 commits** desde a `v0.1.0` (15/09), nas fatias 1–3 documentadas abaixo.
+**24 commits até `aef4211`** desde a `v0.1.0` (15/09), nas fatias 1–3 documentadas
+abaixo. A contagem é de **escopo do produto** — correções de documentação
+posteriores (como esta) não entram nela.
 
 Primeira fatia: **kernel SIMD no hot path**.
 
