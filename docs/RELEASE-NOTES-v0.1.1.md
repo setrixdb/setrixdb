@@ -6,7 +6,7 @@
 
 Segunda versão pública do SetrixDB. A `v0.1.0` provava as ideias em *benchmark*;
 a `v0.1.1` coloca essas ideias **no caminho do produto**. Fecha a issue #16 (fatias 1–3),
-com **22 commits** desde a `v0.1.0` (15/09/2026).
+com **24 commits** desde a `v0.1.0` (15/09/2026).
 
 ## Destaques
 
@@ -55,6 +55,12 @@ caminho escalar/genérico; o tier vetorial é provado na máquina acima e por
   execuções.
 - Escrita depois de `Finalize` (`Set`) volta o shard tocado para denso: o contrato
   antigo (escrever e consultar sem cerimônia) continua valendo.
+
+## Dependências
+
+- `github.com/bits-and-blooms/bloom/v3` **3.7.1 → 3.7.2** (#21), com o indireto
+  `github.com/bits-and-blooms/bitset` **1.24.2 → 1.24.4**. Bump de manutenção
+  (Dependabot), sem mudança de API pública nem de comportamento observável.
 
 ## Não incluído
 
