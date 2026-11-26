@@ -6,7 +6,8 @@
 
 Segunda versão pública do SetrixDB. A `v0.1.0` provava as ideias em *benchmark*;
 a `v0.1.1` coloca essas ideias **no caminho do produto**. Fecha a issue #16 (fatias 1–3),
-com **24 commits** desde a `v0.1.0` (15/09/2026).
+com **24 commits até `aef4211`** desde a `v0.1.0` (15/09/2026) — contagem de
+escopo do produto; correções de documentação posteriores não entram nela.
 
 ## Destaques
 
