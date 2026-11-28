@@ -1,0 +1,20 @@
+[package]
+name = "setrixdb-sys"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "Apache-2.0"
+description = "FFI bindings and a safe wrapper for the SetrixDB C ABI (libsetrixdb)"
+repository = "https://github.com/setrixdb/setrixdb"
+links = "setrixdb"
+build = "build.rs"
+keywords = ["set", "intersection", "ffi", "bitset"]
+categories = ["api-bindings", "data-structures"]
+
+[lib]
+name = "setrixdb_sys"
+path = "src/lib.rs"
+
+[dependencies]
+
+[dev-dependencies]

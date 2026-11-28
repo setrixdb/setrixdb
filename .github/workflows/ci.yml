@@ -25,3 +25,28 @@ jobs:
           GOOS=linux GOARCH=386   CGO_ENABLED=0 go build ./...
       - name: C ABI (C + Python)
         run: bash examples/capi/run.sh
+
+  rust:
+    # O crate `setrixdb-sys` compila a ABI C no build.rs, então precisa de Go
+    # com cgo (gcc vem no runner). Mesmo assim roda `--locked`-style: sem
+    # dependências externas, o piso é o toolchain.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.22'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Verifica formatação
+        run: cargo fmt --check
+      - name: Lint (clippy, warnings = erro)
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Testes (compila a ABI C via build.rs)
+        run: cargo test
+      - name: Exemplo
+        run: cargo run --example audiencia
