@@ -39,9 +39,11 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: '1.22'
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+      - name: Instala Rust (rustfmt + clippy)
+        # rustup já vem no runner; sem action de terceiro no caminho do build.
+        run: |
+          rustup toolchain install stable --profile minimal -c rustfmt -c clippy
+          rustup default stable
       - name: Verifica formatação
         run: cargo fmt --check
       - name: Lint (clippy, warnings = erro)
